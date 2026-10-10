@@ -1,10 +1,10 @@
 id: scenario-021
 alert:
-  name: DBPoolExhausted
+  name: HighP95Latency
   labels:
     service: orders
-    severity: critical
-  description: Orders service failing to get DB connections
+    severity: warning
+  description: p95 latency above 2s on orders
 inject:
   - action: restart_service_with_env
     target: orders

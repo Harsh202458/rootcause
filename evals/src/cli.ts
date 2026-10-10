@@ -1,26 +1,16 @@
-import { runEvals, type EvalConfig } from './runner';
-import { compareReports } from './comparison';
 import * as path from 'node:path';
+import * as dotenv from 'dotenv';
+import { runEvals, RESULTS_DIR, REPO_ROOT, type EvalConfig } from './runner';
+import { compareReports } from './comparison';
 import { generateReport, saveReport } from './report';
+
+dotenv.config({ path: path.join(REPO_ROOT, '.env') });
 
 async function main() {
   const args = process.argv.slice(2);
-  const command = args[0];
 
-  const resultsDir = path.join(process.cwd(), '..', 'docs', 'results');
-
-  if (command === 'compare') {
-    compareReports(resultsDir);
-    return;
-  }
-
-  if (command === 'report') {
-    const runId = args[1];
-    if (!runId) {
-      console.error('Usage: npm run eval -- report <runId>');
-      process.exit(1);
-    }
-    console.log(`Report regeneration for ${runId} not fully implemented as a standalone script.`);
+  if (args[0] === 'compare') {
+    compareReports(RESULTS_DIR);
     return;
   }
 
@@ -47,12 +37,21 @@ async function main() {
   }
 
   console.log('Starting evals with config:', config);
-  const results = await runEvals(config);
-  
-  const report = generateReport(config, results);
-  const outDir = path.join(resultsDir, config.runId);
-  saveReport(report, outDir);
+  const outDir = path.join(RESULTS_DIR, config.runId);
+
+  // Save after every scenario so an interrupted run can be resumed.
+  const save = (results: Parameters<typeof generateReport>[1]) =>
+    saveReport(generateReport(config, results), outDir);
+
+  const results = await runEvals(config, save);
+  save(results);
   console.log(`Saved report to ${outDir}`);
 }
 
-main().catch(console.error);
+main().then(
+  () => process.exit(0),
+  err => {
+    console.error(`\n[Eval] Stopped: ${err.message}`);
+    process.exit(1);
+  }
+);

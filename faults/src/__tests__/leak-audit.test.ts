@@ -41,6 +41,21 @@ test('Anti-Cheat Leak Audit', async (t) => {
         assert.ok(!lowerId.includes(word.toLowerCase()), `Scenario ID ${scenario.id} leaks word: ${word}`);
       }
 
+      // 1b. The alert is the one part of a scenario the agent reads. It may
+      // only state a symptom, using the names of the real Prometheus rules.
+      const ALERT_NAMES = ['HighErrorRate', 'HighP95Latency', 'ServiceDown', 'HighMemory'];
+      assert.ok(ALERT_NAMES.includes(scenario.alert.name), `Alert name ${scenario.alert.name} is not a generic symptom alert`);
+      const alertText = `${scenario.alert.name} ${scenario.alert.description}`.toLowerCase();
+      const HINTS = [
+        ...CATEGORIES,
+        ...CATEGORIES.map(c => c.replace(/_/g, ' ')),
+        'deploy', 'index', 'leak', 'config', 'pool', 'lock', 'migration', 'redis', 'cache',
+        'database', 'query', 'queries', 'dependency', 'column', 'connection'
+      ];
+      for (const hint of HINTS) {
+        assert.ok(!alertText.includes(hint), `Alert for ${scenario.id} hints at the cause: "${hint}"`);
+      }
+
       // 2. Assert inject steps don't expose category info in env vars or labels
       for (const step of scenario.inject) {
         if (step.params && step.params.env) {

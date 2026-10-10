@@ -1,10 +1,10 @@
 id: scenario-016
 alert:
-  name: CacheDown
+  name: HighErrorRate
   labels:
-    service: redis
+    service: inventory
     severity: critical
-  description: Redis service unreachable
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: stop_container
     target: redis

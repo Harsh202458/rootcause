@@ -1,10 +1,10 @@
 id: scenario-012
 alert:
-  name: ServiceDegraded
+  name: HighErrorRate
   labels:
     service: inventory
-    severity: warning
-  description: Inventory service cache errors
+    severity: critical
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: restart_service_with_env
     target: inventory

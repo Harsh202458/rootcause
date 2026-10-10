@@ -3,150 +3,212 @@ import * as path from 'path';
 import * as yaml from 'yaml';
 import Docker from 'dockerode';
 import { Client } from 'pg';
-import pino from 'pino';
 
-const logger = pino({ level: 'info' });
+const ADMIN_DB_URL =
+  process.env.ADMIN_DB_URL || 'postgres://rootcause:rootcause_password@localhost:5432/rootcause';
+const OPS_DB_URL = process.env.OPS_DB_URL || 'postgres://rootcause:rootcause_password@localhost:5432/ops';
+
+// Sessions that hold a lock open are tagged with this name so revert can find
+// them. It is deliberately neutral: the agent can see it in pg_stat_activity.
+const BACKGROUND_APP_NAME = 'batch-worker';
+
+const DEPLOY_KINDS = ['code', 'config', 'migration'];
+
+/**
+ * Actions the injector can really perform. Anything else in a scenario is
+ * refused: an injection that silently does nothing would make the eval score
+ * meaningless.
+ */
+export const SUPPORTED_ACTIONS: ReadonlySet<string> = new Set([
+  'run_sql',
+  'stop_container',
+  'start_container',
+  'exec_in_container',
+  'cancel_long_queries'
+]);
+
+export interface ScenarioStep {
+  action: string;
+  target: string;
+  params?: Record<string, any>;
+}
+
+export interface Scenario {
+  id: string;
+  alert: { name: string; labels: { service: string; severity: string }; description: string };
+  inject: ScenarioStep[];
+  revert: ScenarioStep[];
+  warmup_seconds: number;
+  ground_truth: { component: string; category: string; evidence: string[] };
+  decoy_deploys?: Array<{
+    service: string;
+    kind: string;
+    from_version: string;
+    to_version: string;
+    summary: string;
+    minutes_before: number;
+  }>;
+}
+
+export function loadScenario(scenarioId: string, scenariosDir: string): Scenario {
+  const scenarioPath = path.join(scenariosDir, `${scenarioId}.yaml`);
+  if (!fs.existsSync(scenarioPath)) {
+    throw new Error(`Scenario ${scenarioId} not found at ${scenarioPath}`);
+  }
+  return yaml.parse(fs.readFileSync(scenarioPath, 'utf8')) as Scenario;
+}
+
+/** Actions used by a scenario that the injector cannot perform yet. */
+export function unsupportedActions(scenario: Scenario): string[] {
+  const actions = [...scenario.inject, ...scenario.revert].map(s => s.action);
+  return [...new Set(actions.filter(a => !SUPPORTED_ACTIONS.has(a)))];
+}
 
 export class Injector {
   private docker: Docker;
+  private backgroundClients: Client[] = [];
 
   constructor() {
-    this.docker = new Docker({ socketPath: process.platform === 'win32' ? '//./pipe/docker_engine' : '/var/run/docker.sock' });
+    this.docker = new Docker({
+      socketPath: process.platform === 'win32' ? '//./pipe/docker_engine' : '/var/run/docker.sock'
+    });
   }
 
   public async inject(scenarioId: string, scenariosDir: string): Promise<void> {
-    const scenarioPath = path.join(scenariosDir, `${scenarioId}.yaml`);
-    if (!fs.existsSync(scenarioPath)) {
-      throw new Error(`Scenario ${scenarioId} not found at ${scenarioPath}`);
-    }
-    const fileContent = fs.readFileSync(scenarioPath, 'utf8');
-    const scenario = yaml.parse(fileContent);
+    const scenario = loadScenario(scenarioId, scenariosDir);
+    this.assertSupported(scenario);
 
-    logger.info(`Injecting scenario: ${scenarioId}`);
-    
-    // Simulate decoy deploys
-    if (scenario.decoy_deploys && scenario.decoy_deploys.length > 0) {
-      for (const decoy of scenario.decoy_deploys) {
-        logger.info(`Recording decoy deploy for ${decoy.service} from ${decoy.from_version} to ${decoy.to_version} (${decoy.summary})`);
-        // Real implementation would record this to the event store
-      }
-    }
-
-    // Run inject steps
+    await this.recordDeploys(scenario);
     for (const step of scenario.inject) {
       await this.executeStep(step);
     }
-    logger.info(`Successfully injected scenario: ${scenarioId}`);
+    console.log(`Applied ${scenarioId}`);
   }
 
   public async revert(scenarioId: string, scenariosDir: string): Promise<void> {
-    const scenarioPath = path.join(scenariosDir, `${scenarioId}.yaml`);
-    if (!fs.existsSync(scenarioPath)) {
-      throw new Error(`Scenario ${scenarioId} not found`);
-    }
-    const fileContent = fs.readFileSync(scenarioPath, 'utf8');
-    const scenario = yaml.parse(fileContent);
+    const scenario = loadScenario(scenarioId, scenariosDir);
+    this.assertSupported(scenario);
 
-    logger.info(`Reverting scenario: ${scenarioId}`);
     for (const step of scenario.revert) {
       await this.executeStep(step);
     }
-    logger.info(`Successfully reverted scenario: ${scenarioId}`);
+    await this.closeBackgroundClients();
+    console.log(`Reverted ${scenarioId}`);
   }
 
-  private async executeStep(step: any): Promise<void> {
-    logger.info(`Executing step: ${step.action} on ${step.target}`);
-    
-    switch (step.action) {
-      case 'inject_code_fault':
-      case 'revert_code_fault':
-        logger.info(`Code fault for ${step.target} handled via mock/volume mount in real environment.`);
-        break;
-      
-      case 'restart_service_with_version':
-      case 'restart_service_with_env':
-        logger.info(`Restarting service ${step.target} with updated config/version`);
-        break;
+  private assertSupported(scenario: Scenario): void {
+    const missing = unsupportedActions(scenario);
+    if (missing.length > 0) {
+      throw new Error(`${scenario.id} uses actions the injector does not implement yet: ${missing.join(', ')}`);
+    }
+  }
 
-      case 'run_sql':
+  private async recordDeploys(scenario: Scenario): Promise<void> {
+    const deploys = scenario.decoy_deploys ?? [];
+    if (deploys.length === 0) return;
+
+    const client = new Client({ connectionString: OPS_DB_URL });
+    await client.connect();
+    try {
+      for (const d of deploys) {
+        await client.query(
+          `INSERT INTO deploy_events (timestamp, service, kind, from_version, to_version, summary)
+           VALUES (NOW() - make_interval(mins => $1::int), $2, $3, $4, $5, $6)`,
+          [
+            d.minutes_before,
+            d.service,
+            DEPLOY_KINDS.includes(d.kind) ? d.kind : 'code',
+            d.from_version,
+            d.to_version,
+            d.summary
+          ]
+        );
+      }
+    } finally {
+      await client.end();
+    }
+  }
+
+  // Every branch must throw on failure. Never swallow an error here.
+  private async executeStep(step: ScenarioStep): Promise<void> {
+    const params = step.params ?? {};
+
+    switch (step.action) {
+      case 'run_sql': {
         const client = new Client({
-          host: 'localhost',
-          port: 5432,
-          user: 'postgres',
-          password: 'password',
-          database: 'postgres'
+          connectionString: ADMIN_DB_URL,
+          application_name: params.async ? BACKGROUND_APP_NAME : undefined
         });
-        try {
-          await client.connect();
-          if (step.params.async) {
-             client.query(step.params.query).catch((e: any) => logger.error(`Async query error: ${e.message}`));
-             logger.info(`Started async query: ${step.params.query}`);
-          } else {
-             await client.query(step.params.query);
-             logger.info(`Executed query: ${step.params.query}`);
-          }
-        } catch (e) {
-          logger.error(`Error running SQL: ${e}`);
-        } finally {
-          if (!step.params.async) {
-            await client.end();
-          }
+        await client.connect();
+        if (params.async) {
+          // Holds its connection (and locks) open until cancel_long_queries.
+          this.backgroundClients.push(client);
+          client.on('error', () => undefined);
+          client.query(params.query).catch(() => undefined);
+          return;
         }
-        break;
+        try {
+          await client.query(params.query);
+        } finally {
+          await client.end();
+        }
+        return;
+      }
+
+      case 'cancel_long_queries': {
+        const client = new Client({ connectionString: ADMIN_DB_URL });
+        await client.connect();
+        try {
+          await client.query(
+            'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = $1 AND pid <> pg_backend_pid()',
+            [BACKGROUND_APP_NAME]
+          );
+        } finally {
+          await client.end();
+        }
+        return;
+      }
 
       case 'stop_container':
-        try {
-          const container = this.docker.getContainer(`rootcause-${step.target}-1`);
-          await container.stop();
-          logger.info(`Stopped container ${step.target}`);
-        } catch (e) {
-          logger.error(`Error stopping container ${step.target}: ${e}`);
-        }
-        break;
+        await this.container(step.target).stop();
+        return;
 
       case 'start_container':
-        try {
-          const container = this.docker.getContainer(`rootcause-${step.target}-1`);
-          await container.start();
-          logger.info(`Started container ${step.target}`);
-        } catch (e) {
-          logger.error(`Error starting container ${step.target}: ${e}`);
+        await this.container(step.target).start();
+        return;
+
+      case 'exec_in_container': {
+        const exec = await this.container(step.target).exec({
+          Cmd: String(params.cmd).split(' '),
+          AttachStdout: true,
+          AttachStderr: true
+        });
+        const stream = await exec.start({});
+        await new Promise<void>((resolve, reject) => {
+          stream.on('end', resolve);
+          stream.on('error', reject);
+          stream.resume();
+        });
+        const { ExitCode } = await exec.inspect();
+        if (ExitCode !== 0) {
+          throw new Error(`Command "${params.cmd}" in ${step.target} exited with code ${ExitCode}`);
         }
-        break;
-
-      case 'exec_in_container':
-        try {
-          const container = this.docker.getContainer(`rootcause-${step.target}-1`);
-          const exec = await container.exec({
-            Cmd: step.params.cmd.split(' '),
-            AttachStdout: true,
-            AttachStderr: true
-          });
-          await exec.start({});
-          logger.info(`Executed command in ${step.target}`);
-        } catch (e) {
-          logger.error(`Error executing command in ${step.target}: ${e}`);
-        }
-        break;
-
-      case 'update_redis_config':
-        logger.info(`Updated Redis config: ${JSON.stringify(step.params)}`);
-        break;
-        
-      case 'disconnect_network':
-        logger.info(`Disconnected ${step.target} from network`);
-        break;
-        
-      case 'connect_network':
-        logger.info(`Connected ${step.target} to network`);
-        break;
-
-      case 'cancel_long_queries':
-        logger.info(`Canceling long running queries on ${step.target}`);
-        break;
+        return;
+      }
 
       default:
-        logger.warn(`Unknown action: ${step.action}`);
+        throw new Error(`Unsupported action: ${step.action}`);
     }
+  }
+
+  // Names match container_name in infra/docker-compose.yml.
+  private container(target: string): Docker.Container {
+    return this.docker.getContainer(`rootcause-${target}`);
+  }
+
+  private async closeBackgroundClients(): Promise<void> {
+    const clients = this.backgroundClients;
+    this.backgroundClients = [];
+    await Promise.all(clients.map(c => c.end().catch(() => undefined)));
   }
 }

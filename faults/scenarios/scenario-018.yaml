@@ -1,10 +1,10 @@
 id: scenario-018
 alert:
-  name: CacheDown
+  name: HighErrorRate
   labels:
-    service: redis
+    service: inventory
     severity: critical
-  description: Redis network disconnected
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: disconnect_network
     target: redis

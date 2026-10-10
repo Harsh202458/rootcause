@@ -1,10 +1,10 @@
 id: scenario-009
 alert:
-  name: HighMemoryUsage
+  name: HighMemory
   labels:
     service: inventory
     severity: warning
-  description: Container memory usage above 85%
+  description: Memory usage above threshold on inventory
 inject:
   - action: inject_code_fault
     target: inventory

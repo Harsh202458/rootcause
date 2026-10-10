@@ -4,7 +4,7 @@ alert:
   labels:
     service: inventory
     severity: critical
-  description: Elevated 500 responses on /products/:id
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: inject_code_fault
     target: inventory

@@ -1,47 +1,38 @@
-import { Pool } from 'pg';
+import { Client } from 'pg';
 import { Tool, ToolResult } from './types';
-import { truncate } from './truncate';
-import { v4 as uuid } from 'uuid';
+import { OPS_DB_URL } from '../config';
 
+// The only write the agent can make: a pending proposal for a human to approve.
+// Nothing is executed here.
 export const proposeFixTool: Tool = {
   definition: {
     name: 'propose_fix',
-    description: 'Inserts a pending row into fix_proposals table.',
+    description:
+      'Propose a remediation for a human to approve. This records the proposal only; it does not change the system.',
     parameters: {
       type: 'object',
       properties: {
-        action: { type: 'string' },
-        target: { type: 'string' },
+        action: { type: 'string', description: 'What to do, e.g. "rollback", "restart", "recreate index".' },
+        target: { type: 'string', description: 'The service or database object to act on.' },
         reason: { type: 'string' }
       },
       required: ['action', 'target', 'reason']
     }
   },
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
-    const pgUrl = process.env.OPS_DB_URL || 'postgres://postgres:postgres@localhost:5432/ops';
-    const pool = new Pool({ connectionString: pgUrl });
-    
+    const client = new Client({ connectionString: OPS_DB_URL });
+
     try {
-      const proposalId = uuid();
-      await pool.query(
-        `INSERT INTO fix_proposals (id, action, target, reason, status) VALUES ($1, $2, $3, $4, $5)`,
-        [proposalId, args.action, args.target, args.reason, 'pending']
+      await client.connect();
+      const res = await client.query(
+        `INSERT INTO fix_proposals (action, target, reason, status) VALUES ($1, $2, $3, 'pending') RETURNING id`,
+        [String(args.action), String(args.target), String(args.reason)]
       );
-      
-      const result = { proposalId, status: 'pending' };
-      const json = JSON.stringify(result);
-      const truncated = truncate(json);
-      return {
-        data: result,
-        truncated: truncated.includes('[TRUNCATED')
-      };
+      return { data: { proposalId: res.rows[0].id, status: 'pending' }, truncated: false };
     } catch (e: any) {
-      return {
-        data: { error: e.message },
-        truncated: false
-      };
+      return { data: { error: e.message }, truncated: false };
     } finally {
-      await pool.end();
+      await client.end().catch(() => undefined);
     }
   }
 };

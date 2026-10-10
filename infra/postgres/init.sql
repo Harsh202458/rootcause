@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS deploy_events (
 CREATE TABLE IF NOT EXISTS fix_proposals (
   id SERIAL PRIMARY KEY,
   created_at TIMESTAMP DEFAULT NOW(),
+  run_id INTEGER,
   action VARCHAR(255) NOT NULL,
   target VARCHAR(255) NOT NULL,
   reason TEXT,
@@ -67,6 +68,7 @@ CREATE TABLE IF NOT EXISTS runs (
   total_steps INTEGER DEFAULT 0,
   total_tokens INTEGER DEFAULT 0,
   duration_ms INTEGER,
+  error TEXT,
   scenario_id VARCHAR(100)
 );
 
@@ -94,7 +96,11 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO agent_readonly;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO agent_readonly;
 
 \connect ops;
+-- The agent may read deploy history only. It must never see runs, steps or
+-- fix_proposals: those hold previous investigation reports.
 GRANT CONNECT ON DATABASE ops TO agent_readonly;
 GRANT USAGE ON SCHEMA public TO agent_readonly;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO agent_readonly;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO agent_readonly;
+GRANT SELECT ON deploy_events TO agent_readonly;
+
+-- Lets the agent see other sessions in pg_stat_activity and pg_locks.
+GRANT pg_monitor TO agent_readonly;

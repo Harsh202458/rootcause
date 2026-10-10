@@ -1,4 +1,4 @@
-import { Injector } from './injector';
+import { Injector, unsupportedActions } from './injector';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
@@ -30,7 +30,9 @@ async function main() {
       for (const f of files) {
         const content = fs.readFileSync(path.join(scenariosDir, f), 'utf8');
         const s = yaml.parse(content);
-        console.log(`- ${s.id}: [${s.ground_truth.category}] Alert: ${s.alert.name}`);
+        const missing = unsupportedActions(s);
+        const status = missing.length === 0 ? 'ready' : `NOT IMPLEMENTED (${missing.join(', ')})`;
+        console.log(`- ${s.id}: [${s.ground_truth.category}] ${status}`);
       }
     } else if (command === 'verify-all') {
       const files = fs.readdirSync(scenariosDir).filter(f => f.endsWith('.yaml'));

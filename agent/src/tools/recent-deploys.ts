@@ -1,11 +1,12 @@
-import { Pool } from 'pg';
+import { Client } from 'pg';
 import { Tool, ToolResult } from './types';
-import { truncate } from './truncate';
+import { readonlyDbUrl } from '../config';
 
 export const recentDeploysTool: Tool = {
   definition: {
     name: 'recent_deploys',
-    description: 'Queries deploy_events table in ops database.',
+    description:
+      'Lists code, config and migration deploys from the last N hours (default 24), newest first. Optionally filter by service.',
     parameters: {
       type: 'object',
       properties: {
@@ -15,32 +16,26 @@ export const recentDeploysTool: Tool = {
     }
   },
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
-    const hours = (args.hours as number) || 24;
-    const pgUrl = process.env.OPS_DB_URL || 'postgres://postgres:postgres@localhost:5432/ops';
-    const pool = new Pool({ connectionString: pgUrl });
-    
+    const hours = Math.min(Math.max(Number(args.hours) || 24, 1), 24 * 14);
+    const client = new Client({ connectionString: readonlyDbUrl('ops') });
+
     try {
-      let query = `SELECT * FROM deploy_events WHERE timestamp >= NOW() - INTERVAL '${hours} hours'`;
-      const values: any[] = [];
+      await client.connect();
+      const values: unknown[] = [hours];
+      let query =
+        'SELECT timestamp, service, kind, from_version, to_version, summary, diff_summary ' +
+        'FROM deploy_events WHERE timestamp >= NOW() - make_interval(hours => $1::int)';
       if (args.service) {
-        query += ` AND service = $1`;
-        values.push(args.service);
+        query += ' AND service = $2';
+        values.push(String(args.service));
       }
-      const res = await pool.query(query, values);
-      
-      const json = JSON.stringify(res.rows);
-      const truncated = truncate(json);
-      return {
-        data: res.rows,
-        truncated: truncated.includes('[TRUNCATED')
-      };
+      query += ' ORDER BY timestamp DESC LIMIT 50';
+      const res = await client.query(query, values);
+      return { data: res.rows, truncated: false };
     } catch (e: any) {
-      return {
-        data: { error: e.message },
-        truncated: false
-      };
+      return { data: { error: e.message }, truncated: false };
     } finally {
-      await pool.end();
+      await client.end().catch(() => undefined);
     }
   }
 };

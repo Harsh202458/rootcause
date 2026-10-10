@@ -1,10 +1,10 @@
 id: scenario-023
 alert:
-  name: DBLatencyHigh
+  name: HighP95Latency
   labels:
     service: orders
     severity: warning
-  description: Orders queries slow
+  description: p95 latency above 2s on orders
 inject:
   - action: inject_code_fault
     target: orders

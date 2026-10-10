@@ -1,10 +1,10 @@
 id: scenario-026
 alert:
-  name: DBLockContention
+  name: HighP95Latency
   labels:
-    service: postgres
-    severity: critical
-  description: Queries queued waiting on locks
+    service: inventory
+    severity: warning
+  description: p95 latency above 2s on inventory
 inject:
   - action: run_sql
     target: postgres

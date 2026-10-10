@@ -27,7 +27,15 @@ export async function GET(
       [params.id]
     );
     
-    run.steps = stepsResult.rows;
+    // Map database columns to the names the run page and Timeline read.
+    run.final_report = run.report;
+    run.alert_id = run.alert;
+    run.steps = stepsResult.rows.map(step => ({
+      ...step,
+      reasoning: step.role === 'assistant' ? step.content : null,
+      tokens_used: (step.tokens_in || 0) + (step.tokens_out || 0),
+      is_error: Boolean(step.error)
+    }));
     return NextResponse.json(run);
   } catch (error) {
     console.error(`Error in GET /api/runs/${params.id}:`, error);

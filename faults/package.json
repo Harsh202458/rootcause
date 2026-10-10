@@ -1,7 +1,7 @@
 {
   "name": "@rootcause/faults",
   "version": "1.0.0",
-  "main": "dist/cli.js",
+  "main": "dist/index.js",
   "dependencies": {
     "axios": "^1.6.0",
     "dockerode": "^4.0.0",
@@ -21,5 +21,6 @@
     "build": "tsc",
     "test": "node --test --import tsx src/__tests__/*.test.ts",
     "fault": "tsx src/cli.ts"
-  }
+  },
+  "types": "dist/index.d.ts"
 }

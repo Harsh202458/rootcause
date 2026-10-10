@@ -1,10 +1,10 @@
 id: scenario-010
 alert:
-  name: ServiceUnavailable
+  name: HighErrorRate
   labels:
     service: orders
     severity: critical
-  description: Orders service failing readiness probes
+  description: 5xx error rate above 5% on orders
 inject:
   - action: restart_service_with_env
     target: orders

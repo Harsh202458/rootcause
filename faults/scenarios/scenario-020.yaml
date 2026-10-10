@@ -1,10 +1,10 @@
 id: scenario-020
 alert:
-  name: DBPoolExhausted
+  name: HighP95Latency
   labels:
     service: inventory
-    severity: critical
-  description: Inventory service failing to get DB connections
+    severity: warning
+  description: p95 latency above 2s on inventory
 inject:
   - action: restart_service_with_env
     target: inventory

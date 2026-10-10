@@ -26,3 +26,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Compiled output must never sit next to sources (jest would load it instead of the .ts)
+agent/src/**/*.js

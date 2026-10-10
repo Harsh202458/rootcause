@@ -13,17 +13,24 @@ jest.mock('../tracing', () => ({
 jest.mock('../tools/registry', () => ({
   getToolDefinitions: jest.fn().mockReturnValue([
     { name: 'test_tool', description: 'test', parameters: {} },
+    { name: 'other_tool', description: 'other', parameters: {} },
     { name: 'submit_report', description: 'submit', parameters: {} }
   ]),
   executeTool: jest.fn()
 }));
 
+const usage = { promptTokens: 10, completionTokens: 10, totalTokens: 20 };
+
 class FakeProvider implements LLMProvider {
   name = 'fake';
   model = 'fake-model';
   responses: LLMResponse[] = [];
+  seenTools: string[][] = [];
+  seenMessages: ChatMessage[][] = [];
 
   async chat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<LLMResponse> {
+    this.seenTools.push(tools.map(t => t.name));
+    this.seenMessages.push([...messages]);
     const next = this.responses.shift();
     if (!next) {
       return { text: 'Empty', toolCalls: [], usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } };
@@ -32,123 +39,141 @@ class FakeProvider implements LLMProvider {
   }
 }
 
+const toolCall = (id: string, name = 'test_tool'): LLMResponse => ({
+  toolCalls: [{ id, name, arguments: {} }],
+  usage
+});
+
+const submit = (id: string, evidenceIds: string[], overrides: Record<string, unknown> = {}): LLMResponse => ({
+  toolCalls: [{
+    id,
+    name: 'submit_report',
+    arguments: {
+      component: 'orders',
+      category: 'bad_code_deploy',
+      confidence: 0.8,
+      evidence: evidenceIds.map(toolCallId => ({ toolCallId, description: 'evidence' })),
+      explanation: 'because',
+      suggestedFix: 'rollback',
+      ...overrides
+    }
+  }],
+  usage
+});
+
 describe('Agent Loop', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (registry.executeTool as jest.Mock).mockResolvedValue({ data: 'ok', truncated: false });
   });
 
-  it('1. Normal completion', async () => {
+  it('completes when the report cites a real tool call', async () => {
     const provider = new FakeProvider();
-    provider.responses = [
-      {
-        toolCalls: [{ id: 'call_1', name: 'test_tool', arguments: {} }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      },
-      {
-        toolCalls: [{
-          id: 'call_2', name: 'submit_report', arguments: {
-            evidence: [{ toolCallId: 'call_1', description: 'Test evidence' }]
-          }
-        }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      }
-    ];
-
-    (registry.executeTool as jest.Mock).mockResolvedValueOnce({ data: 'ok', truncated: false });
+    provider.responses = [toolCall('call_1'), submit('call_2', ['call_1'])];
 
     const config: AgentConfig = { provider, useCache: false };
     const result = await runAgent('Alert 1', config);
 
-    expect(result.report).toBeDefined();
+    expect(result.report?.component).toBe('orders');
+    expect(result.evidenceVerified).toBe(true);
     expect(result.steps).toBe(2);
-    expect(tracing.updateRun).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'completed' }));
+    expect(result.toolsUsed).toEqual(['test_tool']);
+    expect(tracing.updateRun).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'completed', total_steps: 2 }));
   });
 
-  it('2. Step limit forced report', async () => {
+  it('forces a report at the step limit and marks its evidence unverified', async () => {
     const provider = new FakeProvider();
-    for (let i = 0; i < 15; i++) {
-      provider.responses.push({
-        toolCalls: [{ id: `call_${i}`, name: 'test_tool', arguments: {} }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      });
-    }
-    // Forced response
-    provider.responses.push({
-      toolCalls: [{
-        id: 'call_forced', name: 'submit_report', arguments: {
-          evidence: []
-        }
-      }],
-      usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-    });
+    for (let i = 0; i < 15; i++) provider.responses.push(toolCall(`call_${i}`));
+    provider.responses.push(submit('call_forced', []));
 
-    (registry.executeTool as jest.Mock).mockResolvedValue({ data: 'ok', truncated: false });
-
-    const config: AgentConfig = { provider, maxSteps: 15, useCache: false };
-    const result = await runAgent('Alert 2', config);
+    const result = await runAgent('Alert 2', { provider, maxSteps: 15, useCache: false });
 
     expect(result.hitLimit).toBe('steps');
-    expect(result.report).toBeDefined();
+    expect(result.report).not.toBeNull();
+    expect(result.evidenceVerified).toBe(false);
     expect(result.steps).toBe(16); // 15 + 1 forced
   });
 
-  it('3. Invalid evidence correction', async () => {
+  it('rejects evidence that cites an unknown tool call, then accepts the correction', async () => {
     const provider = new FakeProvider();
-    provider.responses = [
-      {
-        toolCalls: [{ id: 'call_1', name: 'test_tool', arguments: {} }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      },
-      { // Invalid submit
-        toolCalls: [{
-          id: 'call_2', name: 'submit_report', arguments: {
-            evidence: [{ toolCallId: 'call_invalid', description: 'Bad' }]
-          }
-        }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      },
-      { // Valid submit
-        toolCalls: [{
-          id: 'call_3', name: 'submit_report', arguments: {
-            evidence: [{ toolCallId: 'call_1', description: 'Good' }]
-          }
-        }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      }
-    ];
+    provider.responses = [toolCall('call_1'), submit('call_2', ['call_invalid']), submit('call_3', ['call_1'])];
 
-    (registry.executeTool as jest.Mock).mockResolvedValue({ data: 'ok', truncated: false });
+    const result = await runAgent('Alert 3', { provider, useCache: false });
 
-    const config: AgentConfig = { provider, useCache: false };
-    const result = await runAgent('Alert 3', config);
-
-    expect(result.report).toBeDefined();
+    expect(result.report).not.toBeNull();
     expect(result.steps).toBe(3);
   });
 
-  it('4. Tool error recovery', async () => {
+  it('rejects a report with no evidence', async () => {
+    const provider = new FakeProvider();
+    provider.responses = [toolCall('call_1'), submit('call_2', [])];
+
+    const result = await runAgent('Alert', { provider, maxSteps: 2, useCache: false });
+
+    // The only submission was rejected and the forced call returned nothing.
+    expect(result.report).toBeNull();
+    expect(result.hitLimit).toBe('steps');
+    expect(tracing.updateRun).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'failed' }));
+  });
+
+  it('does not let a report cite its own submit_report call', async () => {
+    const provider = new FakeProvider();
+    provider.responses = [submit('call_1', ['call_1'])];
+
+    const result = await runAgent('Alert', { provider, maxSteps: 1, useCache: false });
+
+    expect(result.report).toBeNull();
+  });
+
+  it('rejects a report with a component outside the allowed set', async () => {
     const provider = new FakeProvider();
     provider.responses = [
-      {
-        toolCalls: [{ id: 'call_1', name: 'test_tool', arguments: {} }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      },
-      { // It will recover and submit report
-        toolCalls: [{
-          id: 'call_2', name: 'submit_report', arguments: {
-            evidence: [] // just to keep it simple
-          }
-        }],
-        usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 }
-      }
+      toolCall('call_1'),
+      submit('call_2', ['call_1'], { component: 'auth' }),
+      submit('call_3', ['call_1'])
     ];
 
+    const result = await runAgent('Alert', { provider, useCache: false });
+
+    expect(result.report?.component).toBe('orders');
+    expect(result.steps).toBe(3);
+  });
+
+  it('recovers from a tool error and may cite the failed call', async () => {
+    const provider = new FakeProvider();
+    provider.responses = [toolCall('call_1'), submit('call_2', ['call_1'])];
+    (registry.executeTool as jest.Mock).mockReset();
     (registry.executeTool as jest.Mock).mockRejectedValueOnce(new Error('Tool failed'));
 
-    const config: AgentConfig = { provider, useCache: false };
-    const result = await runAgent('Alert 4', config);
+    const result = await runAgent('Alert 4', { provider, useCache: false });
 
-    expect(result.report).toBeDefined();
+    expect(result.report).not.toBeNull();
     expect(result.steps).toBe(2);
+  });
+
+  it('nudges the model when it answers with text only', async () => {
+    const provider = new FakeProvider();
+    provider.responses = [
+      { text: 'Let me think.', toolCalls: [], usage },
+      toolCall('call_1'),
+      submit('call_2', ['call_1'])
+    ];
+
+    const result = await runAgent('Alert', { provider, useCache: false });
+
+    expect(result.report).not.toBeNull();
+    const secondCall = provider.seenMessages[1]!;
+    expect(secondCall[secondCall.length - 1]!.role).toBe('user');
+  });
+
+  it('hides disabled tools from the model and refuses calls to them', async () => {
+    const provider = new FakeProvider();
+    provider.responses = [toolCall('call_1', 'other_tool'), toolCall('call_2'), submit('call_3', ['call_2'])];
+
+    const result = await runAgent('Alert', { provider, useCache: false, disabledTools: ['other_tool'] });
+
+    expect(provider.seenTools[0]).toEqual(['test_tool', 'submit_report']);
+    expect(registry.executeTool).toHaveBeenCalledTimes(1);
+    expect(result.toolsUsed).toEqual(['test_tool']);
   });
 });

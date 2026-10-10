@@ -16,8 +16,8 @@ export async function POST(
     const pool = getDb();
     
     await pool.query(
-      "UPDATE fix_proposals SET status = 'rejected', updated_at = NOW(), reason = $1 WHERE id = $2",
-      [`Rejected: ${reason}`, params.id]
+      "UPDATE fix_proposals SET status = 'rejected', decided_at = NOW(), decision_reason = $1 WHERE id = $2",
+      [reason, params.id]
     );
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -4,7 +4,7 @@ alert:
   labels:
     service: gateway
     severity: critical
-  description: Elevated 500 responses on /checkout
+  description: 5xx error rate above 5% on gateway
 inject:
   - action: inject_code_fault
     target: gateway

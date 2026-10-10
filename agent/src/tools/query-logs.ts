@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Pool } from 'pg';
 import { Tool, ToolResult } from './types';
 import { truncate } from './truncate';
+import { readonlyDbUrl } from '../config';
 
 export const queryLogsTool: Tool = {
   definition: {
@@ -30,7 +31,7 @@ export const queryLogsTool: Tool = {
       logs = response.data; // simplify parsing for now
     } catch (e) {
       // Fallback
-      const pgUrl = process.env.OPS_DB_URL || 'postgres://postgres:postgres@localhost:5432/ops';
+      const pgUrl = readonlyDbUrl('ops');
       const pool = new Pool({ connectionString: pgUrl });
       try {
         const res = await pool.query(`SELECT * FROM logs LIMIT $1`, [limit]);

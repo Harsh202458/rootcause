@@ -4,7 +4,7 @@ alert:
   labels:
     service: orders
     severity: critical
-  description: Errors referencing order columns
+  description: 5xx error rate above 5% on orders
 inject:
   - action: run_sql
     target: postgres

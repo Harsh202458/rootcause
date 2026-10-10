@@ -12,7 +12,7 @@ export async function POST(
   try {
     const pool = getDb();
     await pool.query(
-      "UPDATE fix_proposals SET status = 'approved', updated_at = NOW() WHERE id = $1",
+      "UPDATE fix_proposals SET status = 'approved', decided_at = NOW() WHERE id = $1",
       [params.id]
     );
     return NextResponse.json({ success: true });

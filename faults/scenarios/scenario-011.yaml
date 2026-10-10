@@ -1,10 +1,10 @@
 id: scenario-011
 alert:
-  name: ServiceUnavailable
+  name: HighErrorRate
   labels:
     service: inventory
     severity: critical
-  description: Inventory service failing readiness probes
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: restart_service_with_env
     target: inventory

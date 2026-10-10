@@ -1,10 +1,10 @@
 id: scenario-015
 alert:
-  name: DependencyDown
+  name: HighErrorRate
   labels:
     service: gateway
     severity: critical
-  description: Gateway cannot reach inventory service
+  description: 5xx error rate above 5% on gateway
 inject:
   - action: stop_container
     target: inventory

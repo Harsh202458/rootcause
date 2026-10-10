@@ -1,10 +1,10 @@
 id: scenario-008
 alert:
-  name: HighMemoryUsage
+  name: HighMemory
   labels:
     service: orders
     severity: warning
-  description: Container memory usage above 85%
+  description: Memory usage above threshold on orders
 inject:
   - action: inject_code_fault
     target: orders

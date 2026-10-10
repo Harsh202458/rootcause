@@ -4,7 +4,7 @@ alert:
   labels:
     service: inventory
     severity: critical
-  description: Type errors reading products
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: run_sql
     target: postgres

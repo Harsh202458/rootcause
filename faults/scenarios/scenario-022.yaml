@@ -1,10 +1,10 @@
 id: scenario-022
 alert:
-  name: DependencyLatencyHigh
+  name: HighP95Latency
   labels:
     service: gateway
     severity: warning
-  description: Gateway experiencing high latency communicating with payments
+  description: p95 latency above 2s on gateway
 inject:
   - action: exec_in_container
     target: payments

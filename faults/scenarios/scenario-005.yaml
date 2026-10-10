@@ -1,10 +1,10 @@
 id: scenario-005
 alert:
-  name: HighLatency
+  name: HighP95Latency
   labels:
     service: orders
     severity: warning
-  description: Slow queries on orders database
+  description: p95 latency above 2s on orders
 inject:
   - action: run_sql
     target: postgres

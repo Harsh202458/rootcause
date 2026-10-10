@@ -1,9 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as yaml from 'yaml';
 import axios from 'axios';
 import { scoreResult } from './scoring';
 import { createProvider, type LLMProvider, runAgent, type AgentConfig } from '@rootcause/agent';
+import { Injector, loadScenario, unsupportedActions, type Scenario } from '@rootcause/faults';
+
+export const REPO_ROOT = path.resolve(__dirname, '..', '..');
+export const RESULTS_DIR = path.join(REPO_ROOT, 'docs', 'results');
+export const SCENARIOS_DIR = path.join(REPO_ROOT, 'faults', 'scenarios');
 
 export interface EvalConfig {
   provider: string;
@@ -11,6 +15,7 @@ export interface EvalConfig {
   runId: string;
   scenarios?: string[];
   toolSet?: 'full' | 'no_deploys';
+  /** Alert-only baseline: one LLM call that sees the alert text and nothing else. */
   baseline?: boolean;
   resumable?: boolean;
 }
@@ -27,19 +32,21 @@ export interface ScenarioResult {
   durationMs: number;
   toolsUsed: string[];
   hitLimit: string | null;
+  evidenceVerified: boolean;
   error?: string;
 }
 
+const HEALTH_URLS = [
+  'http://localhost:3000/healthz',
+  'http://localhost:3001/healthz',
+  'http://localhost:3002/healthz',
+  'http://localhost:3003/healthz'
+];
+
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-async function checkSystemHealthy(): Promise<boolean> {
-  const services = [
-    'http://localhost:3000/healthz',
-    'http://localhost:3001/healthz',
-    'http://localhost:3002/healthz',
-    'http://localhost:3003/healthz'
-  ];
-  for (const url of services) {
+async function isSystemHealthy(): Promise<boolean> {
+  for (const url of HEALTH_URLS) {
     try {
       const res = await axios.get(url, { timeout: 2000 });
       if (res.status !== 200) return false;
@@ -50,187 +57,167 @@ async function checkSystemHealthy(): Promise<boolean> {
   return true;
 }
 
-export async function runEvals(config: EvalConfig): Promise<ScenarioResult[]> {
-  const resultsDir = path.join(process.cwd(), '..', 'docs', 'results');
-  const scenariosDir = path.join(process.cwd(), '..', 'faults', 'scenarios');
-  
-  // Discover scenario files
-  let scenarioIds = config.scenarios;
-  if (!scenarioIds || scenarioIds.length === 0) {
-    if (fs.existsSync(scenariosDir)) {
-      scenarioIds = fs.readdirSync(scenariosDir)
-        .filter(f => f.endsWith('.yaml') || f.endsWith('.yml'))
-        .map(f => f.replace(/\.ya?ml$/, ''))
-        .sort();
-    } else {
-      scenarioIds = [];
+async function waitUntilHealthy(timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await isSystemHealthy()) return true;
+    await delay(3000);
+  }
+  return false;
+}
+
+/** What the agent is told. Symptom only: never anything from ground_truth. */
+export function formatAlert(scenario: Scenario): string {
+  const { name, labels, description } = scenario.alert;
+  return `[${labels.severity}] ${name} on ${labels.service}: ${description}`;
+}
+
+export function listScenarioIds(): string[] {
+  return fs
+    .readdirSync(SCENARIOS_DIR)
+    .filter(f => f.endsWith('.yaml') || f.endsWith('.yml'))
+    .map(f => f.replace(/\.ya?ml$/, ''))
+    .sort();
+}
+
+function parseBaselineAnswer(text: string | undefined): { component: string; category: string } {
+  const match = (text ?? '').match(/\{[\s\S]*\}/);
+  try {
+    const parsed = JSON.parse(match ? match[0] : '{}');
+    return { component: parsed.component || 'unknown', category: parsed.category || 'unknown' };
+  } catch {
+    return { component: 'unknown', category: 'unknown' };
+  }
+}
+
+export async function runEvals(
+  config: EvalConfig,
+  onProgress?: (results: ScenarioResult[]) => void
+): Promise<ScenarioResult[]> {
+  const scenarioIds = config.scenarios?.length ? config.scenarios : listScenarioIds();
+  const scenarios = scenarioIds.map(id => loadScenario(id, SCENARIOS_DIR));
+
+  // Refuse to start rather than score a scenario whose fault was never injected.
+  if (!config.baseline) {
+    const blocked = scenarios
+      .map(s => ({ id: s.id, missing: unsupportedActions(s) }))
+      .filter(s => s.missing.length > 0);
+    if (blocked.length > 0) {
+      const lines = blocked.map(b => `  ${b.id}: ${b.missing.join(', ')}`).join('\n');
+      throw new Error(
+        `These scenarios need injector actions that are not implemented yet:\n${lines}\n` +
+          'Implement them in faults/src/injector.ts, or pass --scenario for the ones that work.'
+      );
     }
+  }
+
+  // No silent fallback: a missing API key must stop the run, not invent answers.
+  const provider: LLMProvider = createProvider(config.provider as 'gemini' | 'groq' | 'ollama');
+  if (config.model) {
+    provider.model = config.model;
   }
 
   const results: ScenarioResult[] = [];
-  const existingReportPath = path.join(resultsDir, config.runId, 'report.json');
-
-  // Handle resumability
-  const completedScenarios = new Set<string>();
-  if (config.resumable && fs.existsSync(existingReportPath)) {
-    try {
-      const raw = fs.readFileSync(existingReportPath, 'utf8');
-      const prevReport = JSON.parse(raw);
-      if (Array.isArray(prevReport.results)) {
-        for (const r of prevReport.results) {
-          results.push(r);
-          completedScenarios.add(r.scenarioId);
-        }
-        console.log(`[Eval] Resuming run ${config.runId}: loaded ${results.length} previously completed scenarios.`);
-      }
-    } catch (e: any) {
-      console.warn(`[Eval] Warning: Failed to parse previous report for resume: ${e.message}`);
+  const completed = new Set<string>();
+  const previousReport = path.join(RESULTS_DIR, config.runId, 'report.json');
+  if (config.resumable && fs.existsSync(previousReport)) {
+    const prev = JSON.parse(fs.readFileSync(previousReport, 'utf8'));
+    for (const r of prev.results ?? []) {
+      results.push(r);
+      completed.add(r.scenarioId);
     }
+    console.log(`[Eval] Resuming ${config.runId}: ${results.length} scenarios already done.`);
   }
 
-  // Create provider
-  let provider: LLMProvider;
-  try {
-    provider = createProvider(config.provider as 'gemini' | 'groq' | 'ollama');
-    if (config.model) {
-      provider.model = config.model;
-    }
-  } catch (err: any) {
-    console.warn(`[Eval] LLM Provider '${config.provider}' warning: ${err.message}. Using mock provider for test execution.`);
-    provider = {
-      name: config.provider,
-      model: config.model || 'mock-model',
-      async chat() {
-        return {
-          text: 'Investigation findings',
-          toolCalls: [{
-            id: 'call_mock',
-            name: 'submit_report',
-            arguments: {
-              component: 'gateway',
-              category: 'bad_code_deploy',
-              confidence: 0.9,
-              evidence: [],
-              explanation: 'Investigation completed',
-              suggestedFix: 'Revert deployment'
-            }
-          }],
-          usage: { promptTokens: 150, completionTokens: 150, totalTokens: 300 }
-        };
-      }
-    };
-  }
+  const injector = new Injector();
 
-  for (const scenarioId of scenarioIds) {
-    if (completedScenarios.has(scenarioId)) {
-      console.log(`[Eval] Skipping already-completed scenario ${scenarioId}`);
-      continue;
-    }
+  for (const scenario of scenarios) {
+    if (completed.has(scenario.id)) continue;
+    console.log(`\n[Eval] Scenario ${scenario.id}`);
 
-    console.log(`\n======================================================`);
-    console.log(`[Eval] Starting Scenario: ${scenarioId}`);
-    console.log(`======================================================`);
+    const alertText = formatAlert(scenario);
+    const truth = { component: scenario.ground_truth.component, category: scenario.ground_truth.category };
 
-    const scenarioFile = path.join(scenariosDir, `${scenarioId}.yaml`);
-    if (!fs.existsSync(scenarioFile)) {
-      console.error(`[Eval] Scenario file not found: ${scenarioFile}`);
-      continue;
-    }
-
-    const scenarioContent = fs.readFileSync(scenarioFile, 'utf8');
-    const scenario = yaml.parse(scenarioContent);
-
-    const truthComponent = scenario.ground_truth?.component || 'unknown';
-    const truthCategory = scenario.ground_truth?.category || 'unknown';
-    const alertDesc = scenario.alert?.description || `Alert firing for ${scenarioId}`;
-
-    const startTime = Date.now();
-    let agentComponent = 'unknown';
-    let agentCategory = 'unknown';
+    let answer = { component: 'unknown', category: 'unknown' };
     let steps = 0;
     let tokens = 0;
+    let durationMs = 0;
     let hitLimit: string | null = null;
     let toolsUsed: string[] = [];
+    let evidenceVerified = false;
     let errMessage: string | undefined;
 
-    try {
-      if (config.baseline) {
-        // Single-shot baseline: send alert + brief mock context in 1 prompt
-        const baselinePrompt = `Incident Alert: ${alertDesc}\nGround Truth Options:\nComponents: gateway, orders, inventory, payments, postgres, redis\nCategories: bad_code_deploy, dropped_index, memory_leak, wrong_config, dependency_down, redis_unavailable, connection_pool_exhaustion, slow_dependency, long_running_lock, bad_migration\nRespond with component and category as JSON: {"component":"...", "category":"..."}`;
-        
-        const response = await provider.chat([
-          { role: 'user', content: baselinePrompt }
-        ], []);
+    if (config.baseline) {
+      const prompt =
+        `Incident alert: ${alertText}\n` +
+        'Components: gateway, orders, inventory, payments, postgres, redis\n' +
+        'Categories: bad_code_deploy, dropped_index, memory_leak, wrong_config, dependency_down, ' +
+        'redis_unavailable, connection_pool_exhaustion, slow_dependency, long_running_lock, bad_migration\n' +
+        'Reply with the most likely root cause as JSON only: {"component":"...","category":"..."}';
+      const start = Date.now();
+      const response = await provider.chat([{ role: 'user', content: prompt }], []);
+      durationMs = Date.now() - start;
+      steps = 1;
+      tokens = response.usage.totalTokens;
+      answer = parseBaselineAnswer(response.text);
+    } else {
+      if (!(await isSystemHealthy())) {
+        throw new Error(`System is not healthy before ${scenario.id}. Fix it and re-run with --resume.`);
+      }
 
-        steps = 1;
-        tokens = response.usage.totalTokens;
-        
-        try {
-          const parsed = JSON.parse(response.text || '{}');
-          agentComponent = parsed.component || 'unknown';
-          agentCategory = parsed.category || 'unknown';
-        } catch {
-          agentComponent = 'unknown';
-          agentCategory = 'unknown';
-        }
-      } else {
-        // Full agent loop
+      await injector.inject(scenario.id, SCENARIOS_DIR);
+      try {
+        console.log(`[Eval] Fault applied, waiting ${scenario.warmup_seconds}s for symptoms`);
+        await delay(scenario.warmup_seconds * 1000);
+
         const agentConfig: AgentConfig = {
           provider,
           maxSteps: 15,
           tokenBudget: 100000,
-          timeoutMs: 120000,
-          useCache: true
+          timeoutMs: 300000,
+          useCache: false,
+          disabledTools: config.toolSet === 'no_deploys' ? ['recent_deploys'] : [],
+          scenarioId: scenario.id
         };
-
-        const runResult = await runAgent(alertDesc, agentConfig);
-        steps = runResult.steps;
-        tokens = runResult.totalTokens;
-        hitLimit = runResult.hitLimit;
-        
-        if (runResult.report) {
-          agentComponent = runResult.report.component;
-          agentCategory = runResult.report.category;
-        } else {
-          errMessage = runResult.error || 'Agent did not submit a report';
+        const run = await runAgent(alertText, agentConfig);
+        steps = run.steps;
+        tokens = run.totalTokens;
+        durationMs = run.durationMs;
+        hitLimit = run.hitLimit;
+        toolsUsed = run.toolsUsed;
+        evidenceVerified = run.evidenceVerified;
+        errMessage = run.error;
+        if (run.report) {
+          answer = { component: run.report.component, category: run.report.category };
         }
+      } finally {
+        await injector.revert(scenario.id, SCENARIOS_DIR);
       }
-    } catch (e: any) {
-      errMessage = e.message;
-      console.error(`[Eval] Error during scenario ${scenarioId}:`, e.message);
+
+      if (!(await waitUntilHealthy(120000))) {
+        throw new Error(`System did not recover after reverting ${scenario.id}. Results so far are saved.`);
+      }
     }
 
-    const durationMs = Date.now() - startTime;
-    const score = scoreResult(
-      { component: agentComponent, category: agentCategory },
-      { component: truthComponent, category: truthCategory }
-    );
-
-    const scenarioResult: ScenarioResult = {
-      scenarioId,
+    const score = scoreResult(answer, truth);
+    results.push({
+      scenarioId: scenario.id,
       score,
-      agentComponent,
-      agentCategory,
-      truthComponent,
-      truthCategory,
+      agentComponent: answer.component,
+      agentCategory: answer.category,
+      truthComponent: truth.component,
+      truthCategory: truth.category,
       steps,
       tokens,
       durationMs,
       toolsUsed,
       hitLimit,
+      evidenceVerified,
       error: errMessage
-    };
+    });
+    onProgress?.(results);
 
-    results.push(scenarioResult);
-    completedScenarios.add(scenarioId);
-
-    console.log(`[Eval] Result for ${scenarioId}: ${score.toUpperCase()}`);
-    console.log(`       Predicted: ${agentComponent} / ${agentCategory}`);
-    console.log(`       Expected:  ${truthComponent} / ${truthCategory}`);
-    console.log(`       Duration:  ${(durationMs / 1000).toFixed(1)}s, Steps: ${steps}, Tokens: ${tokens}`);
-
-    // Brief pause between scenarios
-    await delay(500);
+    console.log(`[Eval] ${scenario.id}: ${score.toUpperCase()}  predicted ${answer.component}/${answer.category}, expected ${truth.component}/${truth.category}`);
   }
 
   return results;

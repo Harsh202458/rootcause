@@ -12,7 +12,7 @@ async function exportData() {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),
     user: process.env.DB_USER || 'rootcause',
-    password: process.env.DB_PASSWORD || 'rootcause_dev',
+    password: process.env.DB_PASSWORD || 'rootcause_password',
     database: process.env.OPS_DB || 'ops',
   });
 

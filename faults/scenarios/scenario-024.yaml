@@ -1,10 +1,10 @@
 id: scenario-024
 alert:
-  name: DBLatencyHigh
+  name: HighP95Latency
   labels:
     service: inventory
     severity: warning
-  description: Inventory lookups slow
+  description: p95 latency above 2s on inventory
 inject:
   - action: inject_code_fault
     target: inventory

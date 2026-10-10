@@ -1,10 +1,10 @@
 id: scenario-017
 alert:
-  name: CacheEvictionsSpike
+  name: HighP95Latency
   labels:
-    service: redis
+    service: inventory
     severity: warning
-  description: Redis memory full, evicting all keys
+  description: p95 latency above 2s on inventory
 inject:
   - action: update_redis_config
     target: redis
