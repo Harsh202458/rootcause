@@ -1,0 +1,27 @@
+id: scenario-010
+alert:
+  name: ServiceUnavailable
+  labels:
+    service: orders
+    severity: critical
+  description: Orders service failing readiness probes
+inject:
+  - action: restart_service_with_env
+    target: orders
+    params:
+      env:
+        POSTGRES_HOST: bad-db-host
+revert:
+  - action: restart_service_with_env
+    target: orders
+    params:
+      env:
+        POSTGRES_HOST: postgres
+warmup_seconds: 60
+ground_truth:
+  component: orders
+  category: wrong_config
+  evidence:
+    - POSTGRES_HOST env var incorrect
+    - Cannot connect to postgres
+decoy_deploys: []

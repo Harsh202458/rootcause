@@ -1,0 +1,25 @@
+{
+  "name": "@rootcause/faults",
+  "version": "1.0.0",
+  "main": "dist/cli.js",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dockerode": "^4.0.0",
+    "pg": "^8.11.0",
+    "pino": "^8.16.0",
+    "yaml": "^2.3.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.23",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.0",
+    "typescript": "^5.2.0",
+    "tsx": "^4.6.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test --import tsx src/__tests__/*.test.ts",
+    "fault": "tsx src/cli.ts"
+  }
+}

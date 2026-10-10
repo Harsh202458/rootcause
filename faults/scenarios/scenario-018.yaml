@@ -1,0 +1,23 @@
+id: scenario-018
+alert:
+  name: CacheDown
+  labels:
+    service: redis
+    severity: critical
+  description: Redis network disconnected
+inject:
+  - action: disconnect_network
+    target: redis
+    params: {}
+revert:
+  - action: connect_network
+    target: redis
+    params: {}
+warmup_seconds: 60
+ground_truth:
+  component: redis
+  category: redis_unavailable
+  evidence:
+    - redis container off network
+    - Connection timeouts to redis
+decoy_deploys: []

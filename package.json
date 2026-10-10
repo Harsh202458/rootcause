@@ -1,0 +1,37 @@
+{
+  "name": "rootcause",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "services/gateway",
+    "services/orders",
+    "services/inventory",
+    "services/payments",
+    "loadgen",
+    "faults",
+    "agent",
+    "evals",
+    "dashboard",
+    "scripts"
+  ],
+  "scripts": {
+    "up": "tsx scripts/src/up.ts",
+    "down": "tsx scripts/src/down.ts",
+    "seed": "tsx scripts/src/seed.ts",
+    "load": "tsx loadgen/src/index.ts",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "tsc --noEmit --project tsconfig.base.json",
+    "fault": "tsx faults/src/cli.ts",
+    "tool": "tsx agent/src/tool-cli.ts",
+    "investigate": "tsx agent/src/cli.ts",
+    "eval": "tsx evals/src/cli.ts",
+    "deploy:record": "tsx scripts/src/deploy-record.ts",
+    "alerts": "tsx scripts/src/alerts.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0"
+  }
+}

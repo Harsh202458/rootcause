@@ -1,0 +1,18 @@
+{
+  "name": "@rootcause/scripts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test --import tsx src/__tests__/*.test.ts"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.2",
+    "typescript": "^5.2.2"
+  }
+}

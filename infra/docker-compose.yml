@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rootcause-postgres
+    environment:
+      POSTGRES_USER: rootcause
+      POSTGRES_PASSWORD: rootcause_password
+      POSTGRES_DB: rootcause
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    restart: unless-stopped
+    networks:
+      - rootcause
+
+  redis:
+    image: redis:7-alpine
+    container_name: rootcause-redis
+    ports:
+      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    restart: unless-stopped
+    networks:
+      - rootcause
+
+  gateway:
+    build:
+      context: ../
+      dockerfile: services/gateway/Dockerfile
+    container_name: rootcause-gateway
+    env_file: ../.env.example
+    ports:
+      - "3000:3000"
+    depends_on:
+      - orders
+      - inventory
+      - payments
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    restart: unless-stopped
+    networks:
+      - rootcause
+
+  orders:
+    build:
+      context: ../
+      dockerfile: services/orders/Dockerfile
+    container_name: rootcause-orders
+    env_file: ../.env.example
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    restart: unless-stopped
+    networks:
+      - rootcause
+
+  inventory:
+    build:
+      context: ../
+      dockerfile: services/inventory/Dockerfile
+    container_name: rootcause-inventory
+    env_file: ../.env.example
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    restart: unless-stopped
+    networks:
+      - rootcause
+
+  payments:
+    build:
+      context: ../
+      dockerfile: services/payments/Dockerfile
+    container_name: rootcause-payments
+    env_file: ../.env.example
+    ports:
+      - "3003:3003"
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    restart: unless-stopped
+    networks:
+      - rootcause
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rootcause-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks:
+      - rootcause
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: rootcause-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks:
+      - rootcause
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rootcause-grafana
+    ports:
+      - "3333:3000"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks:
+      - rootcause
+
+networks:
+  rootcause:
+    driver: bridge
+
+volumes:
+  postgres_data:

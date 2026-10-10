@@ -1,0 +1,25 @@
+id: scenario-026
+alert:
+  name: DBLockContention
+  labels:
+    service: postgres
+    severity: critical
+  description: Queries queued waiting on locks
+inject:
+  - action: run_sql
+    target: postgres
+    params:
+      query: BEGIN; SELECT * FROM products FOR UPDATE; SELECT pg_sleep(3600); COMMIT;
+      async: true
+revert:
+  - action: cancel_long_queries
+    target: postgres
+    params: {}
+warmup_seconds: 60
+ground_truth:
+  component: postgres
+  category: long_running_lock
+  evidence:
+    - Products table locked
+    - FOR UPDATE query running long
+decoy_deploys: []

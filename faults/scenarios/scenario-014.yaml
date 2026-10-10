@@ -1,0 +1,23 @@
+id: scenario-014
+alert:
+  name: DependencyDown
+  labels:
+    service: gateway
+    severity: critical
+  description: Gateway cannot reach orders service
+inject:
+  - action: stop_container
+    target: orders
+    params: {}
+revert:
+  - action: start_container
+    target: orders
+    params: {}
+warmup_seconds: 60
+ground_truth:
+  component: orders
+  category: dependency_down
+  evidence:
+    - orders container stopped
+    - Gateway connection refused to orders
+decoy_deploys: []

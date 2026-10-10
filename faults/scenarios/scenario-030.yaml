@@ -1,0 +1,25 @@
+id: scenario-030
+alert:
+  name: HighErrorRate
+  labels:
+    service: inventory
+    severity: critical
+  description: Errors referencing product columns
+inject:
+  - action: run_sql
+    target: postgres
+    params:
+      query: ALTER TABLE products DROP COLUMN stock CASCADE;
+revert:
+  - action: run_sql
+    target: postgres
+    params:
+      query: ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0;
+warmup_seconds: 60
+ground_truth:
+  component: postgres
+  category: bad_migration
+  evidence:
+    - Column stock dropped
+    - Postgres complaining column stock does not exist
+decoy_deploys: []

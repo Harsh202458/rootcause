@@ -1,0 +1,23 @@
+id: scenario-016
+alert:
+  name: CacheDown
+  labels:
+    service: redis
+    severity: critical
+  description: Redis service unreachable
+inject:
+  - action: stop_container
+    target: redis
+    params: {}
+revert:
+  - action: start_container
+    target: redis
+    params: {}
+warmup_seconds: 60
+ground_truth:
+  component: redis
+  category: redis_unavailable
+  evidence:
+    - redis container stopped
+    - Cache misses 100%
+decoy_deploys: []

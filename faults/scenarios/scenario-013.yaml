@@ -1,0 +1,23 @@
+id: scenario-013
+alert:
+  name: DependencyDown
+  labels:
+    service: gateway
+    severity: critical
+  description: Gateway cannot reach payments service
+inject:
+  - action: stop_container
+    target: payments
+    params: {}
+revert:
+  - action: start_container
+    target: payments
+    params: {}
+warmup_seconds: 60
+ground_truth:
+  component: payments
+  category: dependency_down
+  evidence:
+    - payments container stopped
+    - Gateway connection refused to payments
+decoy_deploys: []

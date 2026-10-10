@@ -1,0 +1,27 @@
+id: scenario-020
+alert:
+  name: DBPoolExhausted
+  labels:
+    service: inventory
+    severity: critical
+  description: Inventory service failing to get DB connections
+inject:
+  - action: restart_service_with_env
+    target: inventory
+    params:
+      env:
+        DB_POOL_MAX: "1"
+revert:
+  - action: restart_service_with_env
+    target: inventory
+    params:
+      env:
+        DB_POOL_MAX: "20"
+warmup_seconds: 60
+ground_truth:
+  component: inventory
+  category: connection_pool_exhaustion
+  evidence:
+    - DB_POOL_MAX is 1
+    - timeout acquiring client from pool
+decoy_deploys: []

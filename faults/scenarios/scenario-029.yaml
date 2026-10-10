@@ -1,0 +1,27 @@
+id: scenario-029
+alert:
+  name: HighErrorRate
+  labels:
+    service: inventory
+    severity: critical
+  description: Type errors reading products
+inject:
+  - action: run_sql
+    target: postgres
+    params:
+      query: ALTER TABLE products ALTER COLUMN price TYPE VARCHAR USING
+        price::VARCHAR;
+revert:
+  - action: run_sql
+    target: postgres
+    params:
+      query: ALTER TABLE products ALTER COLUMN price TYPE NUMERIC USING
+        price::NUMERIC;
+warmup_seconds: 60
+ground_truth:
+  component: postgres
+  category: bad_migration
+  evidence:
+    - Column price changed to VARCHAR
+    - Type casting errors
+decoy_deploys: []

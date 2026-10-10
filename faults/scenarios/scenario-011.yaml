@@ -1,0 +1,27 @@
+id: scenario-011
+alert:
+  name: ServiceUnavailable
+  labels:
+    service: inventory
+    severity: critical
+  description: Inventory service failing readiness probes
+inject:
+  - action: restart_service_with_env
+    target: inventory
+    params:
+      env:
+        POSTGRES_HOST: wrong-db-host
+revert:
+  - action: restart_service_with_env
+    target: inventory
+    params:
+      env:
+        POSTGRES_HOST: postgres
+warmup_seconds: 60
+ground_truth:
+  component: inventory
+  category: wrong_config
+  evidence:
+    - POSTGRES_HOST env var incorrect
+    - Cannot connect to postgres
+decoy_deploys: []

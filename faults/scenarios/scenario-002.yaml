@@ -1,0 +1,40 @@
+id: scenario-002
+alert:
+  name: HighErrorRate
+  labels:
+    service: orders
+    severity: critical
+  description: Elevated 500 responses on POST /orders
+inject:
+  - action: inject_code_fault
+    target: orders
+    params:
+      file: src/controllers/orders.ts
+      fault: throw new Error("DB Connection Error");
+  - action: restart_service_with_version
+    target: orders
+    params:
+      version: 1.4.1
+revert:
+  - action: revert_code_fault
+    target: orders
+    params:
+      file: src/controllers/orders.ts
+  - action: restart_service_with_version
+    target: orders
+    params:
+      version: 1.4.0
+warmup_seconds: 60
+ground_truth:
+  component: orders
+  category: bad_code_deploy
+  evidence:
+    - Deploy to 1.4.1
+    - 500s on /orders
+decoy_deploys:
+  - service: orders
+    kind: api_update
+    from_version: 1.4.0
+    to_version: 1.4.1
+    summary: "fix: handle null customer ids gracefully"
+    minutes_before: 2

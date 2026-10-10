@@ -1,0 +1,25 @@
+id: scenario-028
+alert:
+  name: HighErrorRate
+  labels:
+    service: orders
+    severity: critical
+  description: Errors referencing order columns
+inject:
+  - action: run_sql
+    target: postgres
+    params:
+      query: ALTER TABLE orders RENAME COLUMN status TO order_status;
+revert:
+  - action: run_sql
+    target: postgres
+    params:
+      query: ALTER TABLE orders RENAME COLUMN order_status TO status;
+warmup_seconds: 60
+ground_truth:
+  component: postgres
+  category: bad_migration
+  evidence:
+    - Column renamed to order_status
+    - Postgres complaining column status does not exist
+decoy_deploys: []

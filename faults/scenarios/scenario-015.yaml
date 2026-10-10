@@ -1,0 +1,23 @@
+id: scenario-015
+alert:
+  name: DependencyDown
+  labels:
+    service: gateway
+    severity: critical
+  description: Gateway cannot reach inventory service
+inject:
+  - action: stop_container
+    target: inventory
+    params: {}
+revert:
+  - action: start_container
+    target: inventory
+    params: {}
+warmup_seconds: 60
+ground_truth:
+  component: inventory
+  category: dependency_down
+  evidence:
+    - inventory container stopped
+    - Gateway connection refused to inventory
+decoy_deploys: []

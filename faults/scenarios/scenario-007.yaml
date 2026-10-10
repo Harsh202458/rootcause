@@ -1,0 +1,41 @@
+id: scenario-007
+alert:
+  name: HighMemoryUsage
+  labels:
+    service: gateway
+    severity: warning
+  description: Container memory usage above 85%
+inject:
+  - action: inject_code_fault
+    target: gateway
+    params:
+      file: src/middleware.ts
+      fault: global.leak = global.leak || []; global.leak.push(new
+        Array(1000000).fill("A"));
+  - action: restart_service_with_version
+    target: gateway
+    params:
+      version: 1.4.1
+revert:
+  - action: revert_code_fault
+    target: gateway
+    params:
+      file: src/middleware.ts
+  - action: restart_service_with_version
+    target: gateway
+    params:
+      version: 1.4.0
+warmup_seconds: 180
+ground_truth:
+  component: gateway
+  category: memory_leak
+  evidence:
+    - OOM restarts
+    - Rising memory metrics
+decoy_deploys:
+  - service: gateway
+    kind: config_update
+    from_version: 1.4.0
+    to_version: 1.4.1
+    summary: "chore: bump dependencies"
+    minutes_before: 5

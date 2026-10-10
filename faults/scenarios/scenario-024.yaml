@@ -1,0 +1,34 @@
+id: scenario-024
+alert:
+  name: DBLatencyHigh
+  labels:
+    service: inventory
+    severity: warning
+  description: Inventory lookups slow
+inject:
+  - action: inject_code_fault
+    target: inventory
+    params:
+      file: src/db.ts
+      fault: await new Promise(r => setTimeout(r, 5000));
+  - action: restart_service_with_version
+    target: inventory
+    params:
+      version: 1.4.1
+revert:
+  - action: revert_code_fault
+    target: inventory
+    params:
+      file: src/db.ts
+  - action: restart_service_with_version
+    target: inventory
+    params:
+      version: 1.4.0
+warmup_seconds: 60
+ground_truth:
+  component: inventory
+  category: slow_dependency
+  evidence:
+    - Code injection adding 5s delay
+    - Query execution times > 5s
+decoy_deploys: []

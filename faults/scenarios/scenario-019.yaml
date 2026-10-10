@@ -1,0 +1,27 @@
+id: scenario-019
+alert:
+  name: DBPoolExhausted
+  labels:
+    service: orders
+    severity: critical
+  description: Orders service failing to get DB connections
+inject:
+  - action: restart_service_with_env
+    target: orders
+    params:
+      env:
+        DB_POOL_MAX: "1"
+revert:
+  - action: restart_service_with_env
+    target: orders
+    params:
+      env:
+        DB_POOL_MAX: "20"
+warmup_seconds: 60
+ground_truth:
+  component: orders
+  category: connection_pool_exhaustion
+  evidence:
+    - DB_POOL_MAX is 1
+    - timeout acquiring client from pool
+decoy_deploys: []

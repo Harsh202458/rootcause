@@ -1,0 +1,34 @@
+{
+  "name": "@rootcause/agent",
+  "version": "1.0.0",
+  "description": "RootCause Agent Tools",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dockerode": "^3.3.5",
+    "dotenv": "^18.0.7",
+    "ioredis": "^5.3.0",
+    "pg": "^8.11.0",
+    "pino": "^8.16.0",
+    "prom-client": "^15.0.0",
+    "yaml": "^2.3.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.21",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.14",
+    "tsx": "^4.0.0",
+    "typescript": "^5.2.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "tool": "tsx src/tool-cli.ts",
+    "investigate": "tsx src/cli.ts"
+  }
+}

@@ -1,11 +1,17 @@
 node_modules/
+**/node_modules/
 dist/
+**/dist/
+.next/
+**/.next/
+.cache/
+**/.cache/
 .env
 .env.local
 *.log
+**/*.log
 coverage/
 .turbo/
-.next/
 out/
 
 # Docker

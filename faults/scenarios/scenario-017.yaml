@@ -1,0 +1,25 @@
+id: scenario-017
+alert:
+  name: CacheEvictionsSpike
+  labels:
+    service: redis
+    severity: warning
+  description: Redis memory full, evicting all keys
+inject:
+  - action: update_redis_config
+    target: redis
+    params:
+      maxmemory: 1mb
+revert:
+  - action: update_redis_config
+    target: redis
+    params:
+      maxmemory: "0"
+warmup_seconds: 60
+ground_truth:
+  component: redis
+  category: redis_unavailable
+  evidence:
+    - maxmemory set very low
+    - high eviction rate
+decoy_deploys: []

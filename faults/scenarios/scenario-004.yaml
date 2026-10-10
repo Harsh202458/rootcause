@@ -1,0 +1,25 @@
+id: scenario-004
+alert:
+  name: HighLatency
+  labels:
+    service: orders
+    severity: warning
+  description: Slow queries on orders database
+inject:
+  - action: run_sql
+    target: postgres
+    params:
+      query: DROP INDEX IF EXISTS idx_orders_customer_id;
+revert:
+  - action: run_sql
+    target: postgres
+    params:
+      query: CREATE INDEX idx_orders_customer_id ON orders(customer_id);
+warmup_seconds: 120
+ground_truth:
+  component: postgres
+  category: dropped_index
+  evidence:
+    - Index idx_orders_customer_id missing
+    - High query latency on customer lookup
+decoy_deploys: []

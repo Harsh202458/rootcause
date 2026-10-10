@@ -1,0 +1,27 @@
+id: scenario-012
+alert:
+  name: ServiceDegraded
+  labels:
+    service: inventory
+    severity: warning
+  description: Inventory service cache errors
+inject:
+  - action: restart_service_with_env
+    target: inventory
+    params:
+      env:
+        REDIS_HOST: wrong-redis
+revert:
+  - action: restart_service_with_env
+    target: inventory
+    params:
+      env:
+        REDIS_HOST: redis
+warmup_seconds: 60
+ground_truth:
+  component: inventory
+  category: wrong_config
+  evidence:
+    - REDIS_HOST env var incorrect
+    - Cannot connect to redis
+decoy_deploys: []

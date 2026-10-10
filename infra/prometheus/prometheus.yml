@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+
+rule_files:
+  - 'alert_rules.yml'
+
+scrape_configs:
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:3000']
+  - job_name: 'orders'
+    static_configs:
+      - targets: ['orders:3001']
+  - job_name: 'inventory'
+    static_configs:
+      - targets: ['inventory:3002']
+  - job_name: 'payments'
+    static_configs:
+      - targets: ['payments:3003']
