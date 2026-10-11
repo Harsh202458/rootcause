@@ -6,7 +6,7 @@ export const recentDeploysTool: Tool = {
   definition: {
     name: 'recent_deploys',
     description:
-      'Lists code, config and migration deploys from the last N hours (default 24), newest first. Optionally filter by service.',
+      'Lists code, config and migration deploys from the last N hours (default 24), newest first, with how many minutes ago each happened (times are UTC). Optionally filter by service.',
     parameters: {
       type: 'object',
       properties: {
@@ -23,7 +23,9 @@ export const recentDeploysTool: Tool = {
       await client.connect();
       const values: unknown[] = [hours];
       let query =
-        'SELECT timestamp, service, kind, from_version, to_version, summary, diff_summary ' +
+        `SELECT to_char(timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS deployed_at, ` +
+        'round(extract(epoch FROM NOW() - timestamp) / 60)::int AS minutes_ago, ' +
+        'service, kind, from_version, to_version, summary, diff_summary ' +
         'FROM deploy_events WHERE timestamp >= NOW() - make_interval(hours => $1::int)';
       if (args.service) {
         query += ' AND service = $2';

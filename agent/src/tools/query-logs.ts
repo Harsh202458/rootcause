@@ -50,8 +50,8 @@ export const queryLogsTool: Tool = {
       SELECT service, level, message,
              split_part(coalesce(error, ''), E'\\n', 1) AS error_summary,
              count(*)::int AS count,
-             to_char(min(ts), 'HH24:MI:SS') AS first_seen,
-             to_char(max(ts), 'HH24:MI:SS') AS last_seen,
+             to_char(min(ts) AT TIME ZONE 'UTC', 'HH24:MI:SS"Z"') AS first_seen,
+             to_char(max(ts) AT TIME ZONE 'UTC', 'HH24:MI:SS"Z"') AS last_seen,
              string_agg(DISTINCT version, ', ') AS versions,
              round(avg(duration_ms))::int AS avg_duration_ms,
              left((array_agg(error ORDER BY ts DESC))[1], 600) AS sample_error
@@ -65,7 +65,7 @@ export const queryLogsTool: Tool = {
     try {
       await client.connect();
       const res = await client.query(sql, values);
-      const now = await client.query("SELECT to_char(NOW(), 'HH24:MI:SS') AS now");
+      const now = await client.query(`SELECT to_char(NOW() AT TIME ZONE 'UTC', 'HH24:MI:SS"Z"') AS now`);
       return {
         data: { period: `${minutes}m`, now: now.rows[0].now, groups: res.rows },
         truncated: false

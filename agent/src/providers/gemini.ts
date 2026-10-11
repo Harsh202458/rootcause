@@ -1,4 +1,4 @@
-import { LLMProvider, ChatMessage, ToolDefinition, LLMResponse, ToolCall } from './types';
+import { LLMProvider, ChatMessage, ToolDefinition, LLMResponse, ToolCall, QuotaExhaustedError } from './types';
 import axios from 'axios';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -8,9 +8,10 @@ export class GeminiProvider implements LLMProvider {
   model: string;
   private apiKey: string;
   
-  // Rate limiting properties
-  private requestsThisMinute = 0;
-  private minuteStartTime = Date.now();
+  // The free tier allows only a few requests per minute, so requests are
+  // spaced evenly instead of sent in a burst.
+  private minIntervalMs = 60000 / Math.max(1, Number(process.env.GEMINI_RPM) || 5) + 500;
+  private lastRequestAt = 0;
 
   // Gemini has no tool call ids, so we mint our own and remember the function name.
   private callCounter = 0;
@@ -28,19 +29,9 @@ export class GeminiProvider implements LLMProvider {
   }
 
   private async enforceRateLimit() {
-    const now = Date.now();
-    if (now - this.minuteStartTime > 60000) {
-      this.minuteStartTime = now;
-      this.requestsThisMinute = 0;
-    }
-
-    if (this.requestsThisMinute >= 15) {
-      const waitTime = 60000 - (now - this.minuteStartTime);
-      await delay(waitTime);
-      this.minuteStartTime = Date.now();
-      this.requestsThisMinute = 0;
-    }
-    this.requestsThisMinute++;
+    const wait = this.lastRequestAt + this.minIntervalMs - Date.now();
+    if (wait > 0) await delay(wait);
+    this.lastRequestAt = Date.now();
   }
 
   async chat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<LLMResponse> {
@@ -91,7 +82,7 @@ export class GeminiProvider implements LLMProvider {
     }] : undefined;
 
     let attempts = 0;
-    while (attempts <= 3) {
+    while (attempts <= 6) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
         const payload: any = {
@@ -158,16 +149,25 @@ export class GeminiProvider implements LLMProvider {
         };
 
       } catch (err: any) {
-        if ((err.response?.status === 429 || err.response?.status === 503) && attempts < 3) {
+        const status = err.response?.status;
+        const message: string = err.response?.data?.error?.message || err.message;
+        // A daily quota will not clear by waiting a minute; stop so the run can resume later.
+        if (status === 429 && /per ?day|daily/i.test(JSON.stringify(err.response?.data ?? ''))) {
+          throw new QuotaExhaustedError(`Gemini daily quota exhausted: ${message}`);
+        }
+        if ((status === 429 || status === 503) && attempts < 6) {
           attempts++;
-          const waitTime = Math.pow(2, attempts) * 1000;
+          const hinted = /retry in ([\d.]+)s/i.exec(message);
+          const waitTime = hinted ? Math.ceil(Number(hinted[1]) * 1000) + 1000 : Math.min(2 ** attempts * 2000, 60000);
           await delay(waitTime);
+          this.lastRequestAt = Date.now();
           continue;
         }
-        throw new Error(`Gemini API Error: ${err.response?.data?.error?.message || err.message}`);
+        if (status === 429) throw new QuotaExhaustedError(`Gemini rate limit: ${message}`);
+        throw new Error(`Gemini API Error: ${message}`);
       }
     }
-    
+
     throw new Error('Gemini rate limit exceeded after retries');
   }
 }

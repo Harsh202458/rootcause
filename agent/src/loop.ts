@@ -31,6 +31,8 @@ export interface AgentRunResult {
   /** False when the report was forced at a limit and its evidence could not be checked. */
   evidenceVerified: boolean;
   error?: string;
+  /** True when the model could not be reached (quota, network). The run says nothing about the agent. */
+  providerFailed?: boolean;
 }
 
 const SUBMIT = 'submit_report';
@@ -100,7 +102,7 @@ export async function runAgent(alert: string, config: AgentConfig): Promise<Agen
     return response;
   };
 
-  const finish = async (error?: string): Promise<AgentRunResult> => {
+  const finish = async (error?: string, providerFailed = false): Promise<AgentRunResult> => {
     const durationMs = Date.now() - startTime;
     const failure = error ?? (report ? undefined : 'Agent did not produce a valid report');
     await updateRun(runId, {
@@ -120,7 +122,8 @@ export async function runAgent(alert: string, config: AgentConfig): Promise<Agen
       toolsUsed: [...toolsUsed],
       hitLimit,
       evidenceVerified,
-      error: failure
+      error: failure,
+      providerFailed
     };
   };
 
@@ -136,7 +139,7 @@ export async function runAgent(alert: string, config: AgentConfig): Promise<Agen
     try {
       response = await callModel(useCache);
     } catch (err: any) {
-      return finish(err.message);
+      return finish(err.message, true);
     }
     totalTokens += response.usage.totalTokens;
 
@@ -193,7 +196,10 @@ export async function runAgent(alert: string, config: AgentConfig): Promise<Agen
         investigationCallIds.add(tc.id);
       }
 
-      messages.push({ role: 'tool', content, toolCallId: tc.id });
+      // The model needs each call's id to cite it as evidence.
+      const visible = tc.name === SUBMIT ? content : `[tool call id: ${tc.id}]
+${content}`;
+      messages.push({ role: 'tool', content: visible, toolCallId: tc.id });
       await insertStep(runId, steps, {
         role: 'tool',
         toolName: tc.name,
@@ -236,7 +242,7 @@ export async function runAgent(alert: string, config: AgentConfig): Promise<Agen
         error: report ? undefined : 'Forced report was missing or invalid'
       });
     } catch (err: any) {
-      return finish(err.message);
+      return finish(err.message, true);
     }
   }
 

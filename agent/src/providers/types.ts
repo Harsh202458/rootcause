@@ -34,3 +34,6 @@ export interface LLMProvider {
   model: string;
   chat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<LLMResponse>;
 }
+
+/** The provider cannot serve more requests for now. Not a failure of the agent. */
+export class QuotaExhaustedError extends Error {}

@@ -165,6 +165,10 @@ export async function runEvals(
           scenarioId: scenario.id
         };
         const run = await runAgent(alertText, agentConfig);
+        if (run.providerFailed) {
+          // Not the agent's failure: stop without scoring so the scenario is retried on resume.
+          throw new Error(`Model unavailable during ${scenario.id}: ${run.error} Re-run with --resume --runId ${config.runId}`);
+        }
         agentRunId = run.runId;
         steps = run.steps;
         tokens = run.totalTokens;
