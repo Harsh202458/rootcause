@@ -12,7 +12,6 @@ const REGION_RULES: Record<string, { multiplier: number }> = {
 
 app.use((_req, _res, next) => {
   if (has('auditTrail')) retain(100 * 1024);
-  if (has('requestSigning')) deriveKey(70);
   next();
 });
 
@@ -26,6 +25,8 @@ app.post('/orders', h(async (req, res) => {
   if (typeof customerId !== 'string' || !Number.isInteger(productId) || !Number.isInteger(quantity)) {
     throw new HttpError(400, 'customerId, productId and quantity are required');
   }
+
+  if (has('requestSigning')) deriveKey(110);
 
   if (has('pricingRules')) {
     total = total * REGION_RULES[req.body.region].multiplier;
