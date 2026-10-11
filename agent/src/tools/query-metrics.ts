@@ -85,7 +85,10 @@ export function summarise(values: Array<[number, string]>, endSeconds: number) {
     latest: round(nums[nums.length - 1]!),
     points: points
       .filter((_, i) => i % stride === 0 || i === points.length - 1)
-      .map(p => `${Math.round((endSeconds - p.t) / 60)}m ago: ${round(p.v)}`)
+      .map(p => {
+        const ago = endSeconds - p.t;
+        return `${ago < 600 ? `${ago}s` : `${Math.round(ago / 60)}m`} ago: ${round(p.v)}`;
+      })
   };
 }
 

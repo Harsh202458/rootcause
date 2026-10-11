@@ -86,6 +86,18 @@ export async function insertStep(runId: number, stepNumber: number, step: StepRe
   );
 }
 
+/** Stores how an eval scored a run, for the dashboard. */
+export async function recordVerdict(
+  runId: number,
+  verdict: string,
+  truth: { component: string; category: string }
+): Promise<void> {
+  await getPool().query(
+    'UPDATE runs SET verdict = $2, truth_component = $3, truth_category = $4 WHERE id = $1',
+    [runId, verdict, truth.component, truth.category]
+  );
+}
+
 export async function closeTracing(): Promise<void> {
   if (pool) {
     await pool.end();

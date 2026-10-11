@@ -84,7 +84,10 @@ CREATE TABLE IF NOT EXISTS runs (
   total_tokens INTEGER DEFAULT 0,
   duration_ms INTEGER,
   error TEXT,
-  scenario_id VARCHAR(100)
+  scenario_id VARCHAR(100),
+  verdict VARCHAR(20),
+  truth_component VARCHAR(50),
+  truth_category VARCHAR(50)
 );
 
 CREATE TABLE IF NOT EXISTS steps (

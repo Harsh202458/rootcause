@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getStaticData } from '@/lib/static-data';
+import { toEvalReport } from '@/lib/mappers';
 import fs from 'fs';
 import path from 'path';
 
@@ -15,12 +16,13 @@ export async function GET() {
       return NextResponse.json([]);
     }
 
-    const files = fs.readdirSync(reportsDir).filter(f => f.endsWith('.json'));
-    const reports = files.map(file => {
-      const data = fs.readFileSync(path.join(reportsDir, file), 'utf8');
-      return JSON.parse(data);
-    });
-    
+    // One folder per eval run, each with a report.json.
+    const reports = fs
+      .readdirSync(reportsDir)
+      .map(run => path.join(reportsDir, run, 'report.json'))
+      .filter(file => fs.existsSync(file))
+      .map(file => toEvalReport(JSON.parse(fs.readFileSync(file, 'utf8'))));
+
     reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return NextResponse.json(reports);
   } catch (error) {

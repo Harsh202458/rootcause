@@ -1,9 +1,17 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import axios from 'axios';
 import { scoreResult } from './scoring';
-import { createProvider, type LLMProvider, runAgent, type AgentConfig } from '@rootcause/agent';
-import { Injector, loadScenario, unsupportedActions, type Scenario } from '@rootcause/faults';
+import { createProvider, type LLMProvider, recordVerdict, runAgent, type AgentConfig } from '@rootcause/agent';
+import {
+  Injector,
+  delay,
+  isSettled,
+  loadScenario,
+  unsupportedActions,
+  waitForAlert,
+  waitUntilSettled,
+  type Scenario
+} from '@rootcause/faults';
 
 export const REPO_ROOT = path.resolve(__dirname, '..', '..');
 export const RESULTS_DIR = path.join(REPO_ROOT, 'docs', 'results');
@@ -34,36 +42,6 @@ export interface ScenarioResult {
   hitLimit: string | null;
   evidenceVerified: boolean;
   error?: string;
-}
-
-const HEALTH_URLS = [
-  'http://localhost:3000/healthz',
-  'http://localhost:3001/healthz',
-  'http://localhost:3002/healthz',
-  'http://localhost:3003/healthz'
-];
-
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-async function isSystemHealthy(): Promise<boolean> {
-  for (const url of HEALTH_URLS) {
-    try {
-      const res = await axios.get(url, { timeout: 2000 });
-      if (res.status !== 200) return false;
-    } catch {
-      return false;
-    }
-  }
-  return true;
-}
-
-async function waitUntilHealthy(timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await isSystemHealthy()) return true;
-    await delay(3000);
-  }
-  return false;
 }
 
 /** What the agent is told. Symptom only: never anything from ground_truth. */
@@ -146,6 +124,7 @@ export async function runEvals(
     let toolsUsed: string[] = [];
     let evidenceVerified = false;
     let errMessage: string | undefined;
+    let agentRunId: number | undefined;
 
     if (config.baseline) {
       const prompt =
@@ -161,14 +140,20 @@ export async function runEvals(
       tokens = response.usage.totalTokens;
       answer = parseBaselineAnswer(response.text);
     } else {
-      if (!(await isSystemHealthy())) {
+      if (!(await isSettled()) && !(await waitUntilSettled(180000))) {
         throw new Error(`System is not healthy before ${scenario.id}. Fix it and re-run with --resume.`);
       }
 
       await injector.inject(scenario.id, SCENARIOS_DIR);
       try {
-        console.log(`[Eval] Fault applied, waiting ${scenario.warmup_seconds}s for symptoms`);
-        await delay(scenario.warmup_seconds * 1000);
+        // Start the agent when the alert it is paged with is really firing.
+        const expected = { name: scenario.alert.name, service: scenario.alert.labels.service };
+        const waited = await waitForAlert(expected, scenario.warmup_seconds * 1000);
+        if (waited === null) {
+          throw new Error(`${scenario.id}: ${expected.name} on ${expected.service} never fired. Run "npm run fault -- verify ${scenario.id}".`);
+        }
+        console.log(`[Eval] Alert fired after ${waited}s`);
+        await delay(15000);
 
         const agentConfig: AgentConfig = {
           provider,
@@ -180,6 +165,7 @@ export async function runEvals(
           scenarioId: scenario.id
         };
         const run = await runAgent(alertText, agentConfig);
+        agentRunId = run.runId;
         steps = run.steps;
         tokens = run.totalTokens;
         durationMs = run.durationMs;
@@ -194,12 +180,13 @@ export async function runEvals(
         await injector.revert(scenario.id, SCENARIOS_DIR);
       }
 
-      if (!(await waitUntilHealthy(120000))) {
+      if (!(await waitUntilSettled(300000))) {
         throw new Error(`System did not recover after reverting ${scenario.id}. Results so far are saved.`);
       }
     }
 
     const score = scoreResult(answer, truth);
+    if (agentRunId !== undefined) await recordVerdict(agentRunId, score, truth);
     results.push({
       scenarioId: scenario.id,
       score,

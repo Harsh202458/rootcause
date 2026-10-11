@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getStaticData } from '@/lib/static-data';
+import { toRun } from '@/lib/mappers';
 
 export async function GET(request: Request) {
   if (process.env.STATIC_EXPORT === 'true') {
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     query += ' ORDER BY created_at DESC LIMIT 100';
     
     const result = await pool.query(query, params);
-    return NextResponse.json(result.rows);
+    return NextResponse.json(result.rows.map(toRun));
   } catch (error) {
     console.error('Error in GET /api/runs:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
