@@ -1,25 +1,31 @@
 id: scenario-026
 alert:
-  name: HighP95Latency
+  name: HighErrorRate
   labels:
     service: inventory
-    severity: warning
-  description: p95 latency above 2s on inventory
+    severity: critical
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: run_sql
     target: postgres
     params:
-      query: BEGIN; SELECT * FROM products FOR UPDATE; SELECT pg_sleep(3600); COMMIT;
-      async: true
+      query: BEGIN; SELECT id FROM products FOR UPDATE;
+      hold_open: true
 revert:
-  - action: cancel_long_queries
+  - action: release_sessions
     target: postgres
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: product list cache TTL 30s -> 45s"
+    diff_summary: "PRODUCT_LIST_TTL: 30 -> 45"
+    minutes_before: 1
 ground_truth:
   component: postgres
   category: long_running_lock
   evidence:
-    - Products table locked
-    - FOR UPDATE query running long
-decoy_deploys: []
+    - a batch-worker session holds row locks on products
+    - stock updates wait on the lock

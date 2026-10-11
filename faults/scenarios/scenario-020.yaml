@@ -1,27 +1,37 @@
 id: scenario-020
 alert:
-  name: HighP95Latency
+  name: HighErrorRate
   labels:
     service: inventory
-    severity: warning
-  description: p95 latency above 2s on inventory
+    severity: critical
+  description: 5xx error rate above 5% on inventory
 inject:
-  - action: restart_service_with_env
+  - action: deploy
     target: inventory
     params:
-      env:
-        DB_POOL_MAX: "1"
+      version: 1.4.4
 revert:
-  - action: restart_service_with_env
+  - action: deploy
     target: inventory
-    params:
-      env:
-        DB_POOL_MAX: "20"
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.4
+    summary: "refactor: reserve stock inside a transaction"
+    diff_summary: "inventory/routes: reserve uses an explicit transaction"
+    minutes_before: 0
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: include request id in access log"
+    diff_summary: "LOG_REQUEST_ID: false -> true"
+    minutes_before: 2
 ground_truth:
   component: inventory
   category: connection_pool_exhaustion
   evidence:
-    - DB_POOL_MAX is 1
-    - timeout acquiring client from pool
-decoy_deploys: []
+    - inventory pool is fully checked out with requests waiting
+    - inventory sessions idle in transaction

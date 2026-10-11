@@ -1,25 +1,31 @@
 id: scenario-027
 alert:
-  name: HighP95Latency
+  name: HighErrorRate
   labels:
-    service: orders
-    severity: warning
-  description: p95 latency above 2s on orders
+    service: inventory
+    severity: critical
+  description: 5xx error rate above 5% on inventory
 inject:
   - action: run_sql
     target: postgres
     params:
-      query: SELECT pg_advisory_lock(12345); SELECT pg_sleep(3600);
-      async: true
+      query: BEGIN; LOCK TABLE products IN ACCESS EXCLUSIVE MODE;
+      hold_open: true
 revert:
-  - action: cancel_long_queries
+  - action: release_sessions
     target: postgres
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: gateway
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: raise upstream timeout 4s -> 5s"
+    diff_summary: "UPSTREAM_TIMEOUT_MS: 4000 -> 5000"
+    minutes_before: 29
 ground_truth:
   component: postgres
   category: long_running_lock
   evidence:
-    - Advisory lock 12345 held
-    - App logic blocked on advisory lock
-decoy_deploys: []
+    - a batch-worker session holds an exclusive lock on products
+    - product queries wait on the lock

@@ -1,35 +1,37 @@
 id: scenario-021
 alert:
-  name: HighP95Latency
+  name: HighErrorRate
   labels:
     service: orders
-    severity: warning
-  description: p95 latency above 2s on orders
+    severity: critical
+  description: 5xx error rate above 5% on orders
 inject:
-  - action: restart_service_with_env
+  - action: deploy
     target: orders
     params:
-      env:
-        DB_POOL_MAX: "1"
-  - action: run_sql
-    target: postgres
-    params:
-      query: SELECT pg_sleep(300);
-      async: true
+      version: 1.4.5
 revert:
-  - action: restart_service_with_env
+  - action: deploy
     target: orders
-    params:
-      env:
-        DB_POOL_MAX: "20"
-  - action: cancel_long_queries
-    target: postgres
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.5
+    summary: "perf: reuse a pooled connection for order lookup"
+    diff_summary: "orders/routes: GET /orders/:id checks out a client"
+    minutes_before: 0
+  - service: payments
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: rotate card processor credentials"
+    diff_summary: "PROCESSOR_API_KEY: (rotated)"
+    minutes_before: 19
 ground_truth:
   component: orders
   category: connection_pool_exhaustion
   evidence:
-    - DB_POOL_MAX is 1
-    - long running query hogging connection
-decoy_deploys: []
+    - orders pool is fully checked out with requests waiting
+    - timeouts acquiring a connection

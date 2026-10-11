@@ -1,25 +1,31 @@
 id: scenario-025
 alert:
-  name: HighP95Latency
+  name: HighErrorRate
   labels:
     service: orders
-    severity: warning
-  description: p95 latency above 2s on orders
+    severity: critical
+  description: 5xx error rate above 5% on orders
 inject:
   - action: run_sql
     target: postgres
     params:
-      query: BEGIN; SELECT * FROM orders FOR UPDATE; SELECT pg_sleep(3600); COMMIT;
-      async: true
+      query: BEGIN; LOCK TABLE orders IN ACCESS EXCLUSIVE MODE;
+      hold_open: true
 revert:
-  - action: cancel_long_queries
+  - action: release_sessions
     target: postgres
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: include request id in access log"
+    diff_summary: "LOG_REQUEST_ID: false -> true"
+    minutes_before: 15
 ground_truth:
   component: postgres
   category: long_running_lock
   evidence:
-    - Orders table locked
-    - FOR UPDATE query running long
-decoy_deploys: []
+    - a batch-worker session holds an exclusive lock on orders
+    - orders queries wait on the lock

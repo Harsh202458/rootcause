@@ -44,6 +44,21 @@ CREATE TABLE IF NOT EXISTS deploy_events (
   diff_summary TEXT
 );
 
+CREATE TABLE IF NOT EXISTS logs (
+  id BIGSERIAL PRIMARY KEY,
+  ts TIMESTAMPTZ NOT NULL,
+  service VARCHAR(50) NOT NULL,
+  version VARCHAR(20),
+  level VARCHAR(10) NOT NULL,
+  request_id VARCHAR(64),
+  route VARCHAR(200),
+  status INTEGER,
+  duration_ms INTEGER,
+  message TEXT NOT NULL,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs (ts);
+
 CREATE TABLE IF NOT EXISTS fix_proposals (
   id SERIAL PRIMARY KEY,
   created_at TIMESTAMP DEFAULT NOW(),
@@ -100,7 +115,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO agent_readon
 -- fix_proposals: those hold previous investigation reports.
 GRANT CONNECT ON DATABASE ops TO agent_readonly;
 GRANT USAGE ON SCHEMA public TO agent_readonly;
-GRANT SELECT ON deploy_events TO agent_readonly;
+GRANT SELECT ON deploy_events, logs TO agent_readonly;
 
 -- Lets the agent see other sessions in pg_stat_activity and pg_locks.
 GRANT pg_monitor TO agent_readonly;

@@ -9,17 +9,29 @@ inject:
   - action: run_sql
     target: postgres
     params:
-      query: ALTER TABLE orders RENAME COLUMN status TO order_status;
+      query: ALTER TABLE orders RENAME COLUMN status TO order_status
 revert:
   - action: run_sql
     target: postgres
     params:
-      query: ALTER TABLE orders RENAME COLUMN order_status TO status;
-warmup_seconds: 60
+      query: ALTER TABLE orders RENAME COLUMN order_status TO status
+warmup_seconds: 240
+deploys:
+  - service: postgres
+    kind: migration
+    summary: "migration: rename orders.status to order_status"
+    diff_summary: ALTER TABLE orders RENAME COLUMN status TO order_status
+    minutes_before: 0
+  - service: payments
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: rotate card processor credentials"
+    diff_summary: "PROCESSOR_API_KEY: (rotated)"
+    minutes_before: 6
 ground_truth:
   component: postgres
   category: bad_migration
   evidence:
-    - Column renamed to order_status
-    - Postgres complaining column status does not exist
-decoy_deploys: []
+    - "orders queries fail: column status does not exist"
+    - the column was renamed to order_status

@@ -4,38 +4,34 @@ alert:
   labels:
     service: orders
     severity: warning
-  description: Memory usage above threshold on orders
+  description: Memory above 150MB on orders
 inject:
-  - action: inject_code_fault
+  - action: deploy
     target: orders
     params:
-      file: src/index.ts
-      fault: global.leak = global.leak || []; global.leak.push(new
-        Array(1000000).fill("B"));
-  - action: restart_service_with_version
-    target: orders
-    params:
-      version: 1.4.1
+      version: 1.4.2
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: orders
-    params:
-      file: src/index.ts
-  - action: restart_service_with_version
-    target: orders
-    params:
-      version: 1.4.0
-warmup_seconds: 180
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.2
+    summary: "feat: order audit trail"
+    diff_summary: "orders/middleware: record request audit entries"
+    minutes_before: 0
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: product list cache TTL 30s -> 45s"
+    diff_summary: "PRODUCT_LIST_TTL: 30 -> 45"
+    minutes_before: 3
 ground_truth:
   component: orders
   category: memory_leak
   evidence:
-    - OOM restarts
-    - Rising memory metrics
-decoy_deploys:
-  - service: orders
-    kind: config_update
-    from_version: 1.4.0
-    to_version: 1.4.1
-    summary: "chore: update base image"
-    minutes_before: 5
+    - orders memory climbs steadily
+    - orders restarts after being killed for memory

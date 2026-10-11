@@ -6,35 +6,39 @@ alert:
     severity: critical
   description: 5xx error rate above 5% on orders
 inject:
-  - action: inject_code_fault
-    target: orders
-    params:
-      file: src/controllers/orders.ts
-      fault: throw new Error("DB Connection Error");
-  - action: restart_service_with_version
+  - action: deploy
     target: orders
     params:
       version: 1.4.1
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: orders
-    params:
-      file: src/controllers/orders.ts
-  - action: restart_service_with_version
-    target: orders
-    params:
-      version: 1.4.0
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.1
+    summary: "feat: regional pricing rules"
+    diff_summary: "orders/routes: multiply total by REGION_RULES[region]"
+    minutes_before: 0
+  - service: payments
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: rotate card processor credentials"
+    diff_summary: "PROCESSOR_API_KEY: (rotated)"
+    minutes_before: 1
+  - service: gateway
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: raise upstream timeout 4s -> 5s"
+    diff_summary: "UPSTREAM_TIMEOUT_MS: 4000 -> 5000"
+    minutes_before: 31
 ground_truth:
   component: orders
   category: bad_code_deploy
   evidence:
-    - Deploy to 1.4.1
-    - 500s on /orders
-decoy_deploys:
-  - service: orders
-    kind: api_update
-    from_version: 1.4.0
-    to_version: 1.4.1
-    summary: "fix: handle null customer ids gracefully"
-    minutes_before: 2
+    - orders 1.4.1 deployed when errors began
+    - TypeError in POST /orders

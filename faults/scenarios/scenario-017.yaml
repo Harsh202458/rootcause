@@ -1,25 +1,28 @@
 id: scenario-017
 alert:
-  name: HighP95Latency
+  name: HighErrorRate
   labels:
     service: inventory
-    severity: warning
-  description: p95 latency above 2s on inventory
+    severity: critical
+  description: 5xx error rate above 5% on inventory
 inject:
-  - action: update_redis_config
+  - action: pause_container
     target: redis
-    params:
-      maxmemory: 1mb
 revert:
-  - action: update_redis_config
+  - action: unpause_container
     target: redis
-    params:
-      maxmemory: "0"
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: product list cache TTL 30s -> 45s"
+    diff_summary: "PRODUCT_LIST_TTL: 30 -> 45"
+    minutes_before: 33
 ground_truth:
   component: redis
   category: redis_unavailable
   evidence:
-    - maxmemory set very low
-    - high eviction rate
-decoy_deploys: []
+    - redis container is paused
+    - redis commands time out in inventory

@@ -4,31 +4,34 @@ alert:
   labels:
     service: orders
     severity: warning
-  description: p95 latency above 2s on orders
+  description: p95 latency above threshold on orders
 inject:
-  - action: inject_code_fault
+  - action: deploy
     target: orders
     params:
-      file: src/db.ts
-      fault: await new Promise(r => setTimeout(r, 5000));
-  - action: restart_service_with_version
-    target: orders
-    params:
-      version: 1.4.1
+      version: 1.4.3
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: orders
-    params:
-      file: src/db.ts
-  - action: restart_service_with_version
-    target: orders
-    params:
-      version: 1.4.0
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.3
+    summary: "feat: sign order requests"
+    diff_summary: "orders/middleware: derive a signing key per request"
+    minutes_before: 0
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: product list cache TTL 30s -> 45s"
+    diff_summary: "PRODUCT_LIST_TTL: 30 -> 45"
+    minutes_before: 5
 ground_truth:
   component: orders
   category: slow_dependency
   evidence:
-    - Code injection adding 5s delay
-    - Query execution times > 5s
-decoy_deploys: []
+    - orders event loop lag is high
+    - every orders route is slow, queries are not

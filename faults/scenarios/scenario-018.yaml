@@ -8,16 +8,19 @@ alert:
 inject:
   - action: disconnect_network
     target: redis
-    params: {}
 revert:
   - action: connect_network
     target: redis
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: postgres
+    kind: migration
+    summary: "migration: document orders.payment_id"
+    diff_summary: COMMENT ON COLUMN orders.payment_id IS 'card processor reference'
+    minutes_before: 13
 ground_truth:
   component: redis
   category: redis_unavailable
   evidence:
-    - redis container off network
-    - Connection timeouts to redis
-decoy_deploys: []
+    - redis is running but unreachable
+    - inventory cannot reach redis

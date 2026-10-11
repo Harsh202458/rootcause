@@ -1,34 +1,47 @@
+# Symptom alerts only. They say what is wrong and where it shows, never why.
 groups:
   - name: rootcause_alerts
     rules:
       - alert: HighErrorRate
-        expr: sum(rate(http_requests_total{status=~"5.."}[1m])) / sum(rate(http_requests_total[1m])) > 0.05
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "High error rate on {{ $labels.job }}"
-
-      - alert: HighP95Latency
-        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le, job)) > 2
-        for: 1m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High p95 latency on {{ $labels.job }}"
-
-      - alert: ServiceDown
-        expr: up == 0
+        expr: |
+          sum by (job) (rate(http_requests_total{status=~"5.."}[1m]))
+            / sum by (job) (rate(http_requests_total[1m])) > 0.05
         for: 30s
         labels:
           severity: critical
         annotations:
-          summary: "Service {{ $labels.job }} is down"
+          summary: "5xx error rate above 5% on {{ $labels.job }}"
 
-      - alert: HighMemory
-        expr: process_resident_memory_bytes > 200000000
-        for: 2m
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum by (le, job) (rate(http_request_duration_seconds_bucket{job!="gateway"}[1m]))) > 0.1
+        for: 30s
         labels:
           severity: warning
         annotations:
-          summary: "High memory usage on {{ $labels.job }}"
+          summary: "p95 latency above 100ms on {{ $labels.job }}"
+
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum by (le, job) (rate(http_request_duration_seconds_bucket{job="gateway"}[1m]))) > 0.5
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency above 500ms on {{ $labels.job }}"
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 20s
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is not responding to health checks"
+
+      - alert: HighMemory
+        expr: process_resident_memory_bytes > 150000000
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory above 150MB on {{ $labels.job }}"

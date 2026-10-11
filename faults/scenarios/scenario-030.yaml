@@ -2,24 +2,36 @@ id: scenario-030
 alert:
   name: HighErrorRate
   labels:
-    service: inventory
+    service: orders
     severity: critical
-  description: 5xx error rate above 5% on inventory
+  description: 5xx error rate above 5% on orders
 inject:
   - action: run_sql
     target: postgres
     params:
-      query: ALTER TABLE products DROP COLUMN stock CASCADE;
+      query: ALTER TABLE orders ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'INR'; ALTER TABLE orders ALTER COLUMN currency DROP DEFAULT
 revert:
   - action: run_sql
     target: postgres
     params:
-      query: ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0;
-warmup_seconds: 60
+      query: ALTER TABLE orders DROP COLUMN IF EXISTS currency
+warmup_seconds: 240
+deploys:
+  - service: postgres
+    kind: migration
+    summary: "migration: add currency to orders"
+    diff_summary: ALTER TABLE orders ADD COLUMN currency VARCHAR(3) NOT NULL
+    minutes_before: 0
+  - service: gateway
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: raise upstream timeout 4s -> 5s"
+    diff_summary: "UPSTREAM_TIMEOUT_MS: 4000 -> 5000"
+    minutes_before: 3
 ground_truth:
   component: postgres
   category: bad_migration
   evidence:
-    - Column stock dropped
-    - Postgres complaining column stock does not exist
-decoy_deploys: []
+    - "order inserts fail: null value in column currency"
+    - currency is NOT NULL with no default

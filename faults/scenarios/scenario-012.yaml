@@ -6,22 +6,33 @@ alert:
     severity: critical
   description: 5xx error rate above 5% on inventory
 inject:
-  - action: restart_service_with_env
+  - action: deploy
     target: inventory
     params:
       env:
-        REDIS_HOST: wrong-redis
+        REDIS_HOST: redis-cache
 revert:
-  - action: restart_service_with_env
+  - action: deploy
     target: inventory
-    params:
-      env:
-        REDIS_HOST: redis
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: move cache to the dedicated redis"
+    diff_summary: "REDIS_HOST: redis -> redis-cache"
+    minutes_before: 0
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: include request id in access log"
+    diff_summary: "LOG_REQUEST_ID: false -> true"
+    minutes_before: 27
 ground_truth:
   component: inventory
   category: wrong_config
   evidence:
-    - REDIS_HOST env var incorrect
-    - Cannot connect to redis
-decoy_deploys: []
+    - inventory cannot resolve redis-cache
+    - redis itself is healthy

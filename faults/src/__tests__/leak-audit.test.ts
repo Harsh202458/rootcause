@@ -69,8 +69,8 @@ test('Anti-Cheat Leak Audit', async (t) => {
       }
 
       // 3. Assert decoy deploy summaries don't mention faults
-      if (scenario.decoy_deploys) {
-        for (const deploy of scenario.decoy_deploys) {
+      if (scenario.deploys) {
+        for (const deploy of scenario.deploys) {
           const lowerSummary = deploy.summary.toLowerCase();
           for (const word of ['fault', 'chaos', 'inject', 'test']) {
             assert.ok(!lowerSummary.includes(word), `Deploy summary "${deploy.summary}" leaks word: ${word}`);

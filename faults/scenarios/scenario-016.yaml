@@ -8,16 +8,21 @@ alert:
 inject:
   - action: stop_container
     target: redis
-    params: {}
 revert:
   - action: start_container
     target: redis
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: product list cache TTL 30s -> 45s"
+    diff_summary: "PRODUCT_LIST_TTL: 30 -> 45"
+    minutes_before: 7
 ground_truth:
   component: redis
   category: redis_unavailable
   evidence:
-    - redis container stopped
-    - Cache misses 100%
-decoy_deploys: []
+    - redis container is stopped
+    - inventory cannot take reservation locks

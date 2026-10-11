@@ -4,38 +4,34 @@ alert:
   labels:
     service: gateway
     severity: warning
-  description: Memory usage above threshold on gateway
+  description: Memory above 150MB on gateway
 inject:
-  - action: inject_code_fault
+  - action: deploy
     target: gateway
     params:
-      file: src/middleware.ts
-      fault: global.leak = global.leak || []; global.leak.push(new
-        Array(1000000).fill("A"));
-  - action: restart_service_with_version
-    target: gateway
-    params:
-      version: 1.4.1
+      version: 1.4.2
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: gateway
-    params:
-      file: src/middleware.ts
-  - action: restart_service_with_version
-    target: gateway
-    params:
-      version: 1.4.0
-warmup_seconds: 180
+warmup_seconds: 240
+deploys:
+  - service: gateway
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.2
+    summary: "feat: keep response samples for audit"
+    diff_summary: "gateway/middleware: sample responses"
+    minutes_before: 0
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: include request id in access log"
+    diff_summary: "LOG_REQUEST_ID: false -> true"
+    minutes_before: 18
 ground_truth:
   component: gateway
   category: memory_leak
   evidence:
-    - OOM restarts
-    - Rising memory metrics
-decoy_deploys:
-  - service: gateway
-    kind: config_update
-    from_version: 1.4.0
-    to_version: 1.4.1
-    summary: "chore: bump dependencies"
-    minutes_before: 5
+    - gateway memory climbs steadily
+    - gateway restarts after being killed for memory

@@ -6,35 +6,32 @@ alert:
     severity: critical
   description: 5xx error rate above 5% on gateway
 inject:
-  - action: inject_code_fault
-    target: gateway
-    params:
-      file: src/routes/checkout.ts
-      fault: throw new Error("Internal Server Error");
-  - action: restart_service_with_version
+  - action: deploy
     target: gateway
     params:
       version: 1.4.1
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: gateway
-    params:
-      file: src/routes/checkout.ts
-  - action: restart_service_with_version
-    target: gateway
-    params:
-      version: 1.4.0
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: gateway
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.1
+    summary: "feat: validate coupon codes at checkout"
+    diff_summary: "gateway/checkout: reject coupon codes longer than 12 characters"
+    minutes_before: 0
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: product list cache TTL 30s -> 45s"
+    diff_summary: "PRODUCT_LIST_TTL: 30 -> 45"
+    minutes_before: 14
 ground_truth:
   component: gateway
   category: bad_code_deploy
   evidence:
-    - Deploy to 1.4.1
-    - 500s on /checkout
-decoy_deploys:
-  - service: gateway
-    kind: api_update
-    from_version: 1.4.0
-    to_version: 1.4.1
-    summary: "feat: add payment intent validation"
-    minutes_before: 1
+    - gateway 1.4.1 deployed when errors began
+    - TypeError in POST /checkout

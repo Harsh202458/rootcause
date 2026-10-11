@@ -2,24 +2,37 @@ id: scenario-022
 alert:
   name: HighP95Latency
   labels:
-    service: gateway
+    service: payments
     severity: warning
-  description: p95 latency above 2s on gateway
+  description: p95 latency above threshold on payments
 inject:
-  - action: exec_in_container
+  - action: http_post
     target: payments
     params:
-      cmd: tc qdisc add dev eth0 root netem delay 10000ms
+      port: 3003
+      path: /internal/processor
+      body:
+        latencyMs: 1500
 revert:
-  - action: exec_in_container
+  - action: http_post
     target: payments
     params:
-      cmd: tc qdisc del dev eth0 root
-warmup_seconds: 60
+      port: 3003
+      path: /internal/processor
+      body:
+        latencyMs: 0
+warmup_seconds: 240
+deploys:
+  - service: gateway
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: raise upstream timeout 4s -> 5s"
+    diff_summary: "UPSTREAM_TIMEOUT_MS: 4000 -> 5000"
+    minutes_before: 12
 ground_truth:
   component: payments
   category: slow_dependency
   evidence:
-    - payments network delayed 10s
-    - gateway timeouts to payments
-decoy_deploys: []
+    - POST /payments takes about 1.5s
+    - checkout latency follows payments

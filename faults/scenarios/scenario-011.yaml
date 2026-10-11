@@ -6,22 +6,33 @@ alert:
     severity: critical
   description: 5xx error rate above 5% on inventory
 inject:
-  - action: restart_service_with_env
+  - action: deploy
     target: inventory
     params:
       env:
-        POSTGRES_HOST: wrong-db-host
+        POSTGRES_HOST: postgres-replica
 revert:
-  - action: restart_service_with_env
+  - action: deploy
     target: inventory
-    params:
-      env:
-        POSTGRES_HOST: postgres
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: read products from the replica"
+    diff_summary: "POSTGRES_HOST: postgres -> postgres-replica"
+    minutes_before: 0
+  - service: payments
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: rotate card processor credentials"
+    diff_summary: "PROCESSOR_API_KEY: (rotated)"
+    minutes_before: 4
 ground_truth:
   component: inventory
   category: wrong_config
   evidence:
-    - POSTGRES_HOST env var incorrect
-    - Cannot connect to postgres
-decoy_deploys: []
+    - inventory cannot resolve postgres-replica
+    - postgres itself is healthy

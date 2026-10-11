@@ -1,4 +1,16 @@
-version: '3.8'
+# The demo system. Loki and Grafana are left out so it fits in 4 GB:
+# logs go to the ops database and metrics to Prometheus.
+#
+# The ${X:-default} values are how a release or config change reaches a
+# service: recreate the container with the variable set (see faults/).
+
+x-service: &service
+  image: rootcause-services
+  restart: unless-stopped
+  networks: [rootcause]
+
+x-common-env: &common-env
+  LOG_DB_URL: postgres://rootcause:rootcause_password@postgres:5432/ops
 
 services:
   postgres:
@@ -8,148 +20,103 @@ services:
       POSTGRES_USER: rootcause
       POSTGRES_PASSWORD: rootcause_password
       POSTGRES_DB: rootcause
-    ports:
-      - "5432:5432"
+    ports: ["5432:5432"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    deploy:
-      resources:
-        limits:
-          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rootcause -d ops"]
+      interval: 3s
+      retries: 20
+    mem_limit: 768m
     restart: unless-stopped
-    networks:
-      - rootcause
+    networks: [rootcause]
 
   redis:
     image: redis:7-alpine
     container_name: rootcause-redis
-    ports:
-      - "6379:6379"
-    deploy:
-      resources:
-        limits:
-          memory: 128m
+    ports: ["6379:6379"]
+    mem_limit: 128m
     restart: unless-stopped
-    networks:
-      - rootcause
+    networks: [rootcause]
 
   gateway:
+    <<: *service
     build:
       context: ../
-      dockerfile: services/gateway/Dockerfile
+      dockerfile: services/Dockerfile
     container_name: rootcause-gateway
-    env_file: ../.env.example
-    ports:
-      - "3000:3000"
+    environment:
+      <<: *common-env
+      SERVICE: gateway
+      SERVICE_VERSION: ${GATEWAY_VERSION:-1.4.0}
+    ports: ["3000:3000"]
     depends_on:
-      - orders
-      - inventory
-      - payments
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-    restart: unless-stopped
-    networks:
-      - rootcause
+      postgres: { condition: service_healthy }
+    mem_limit: 256m
+    memswap_limit: 256m
 
   orders:
-    build:
-      context: ../
-      dockerfile: services/orders/Dockerfile
+    <<: *service
     container_name: rootcause-orders
-    env_file: ../.env.example
-    ports:
-      - "3001:3001"
+    environment:
+      <<: *common-env
+      SERVICE: orders
+      SERVICE_VERSION: ${ORDERS_VERSION:-1.4.0}
+      POSTGRES_HOST: ${ORDERS_POSTGRES_HOST:-postgres}
+    ports: ["3001:3001"]
     depends_on:
-      - postgres
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-    restart: unless-stopped
-    networks:
-      - rootcause
+      postgres: { condition: service_healthy }
+    mem_limit: 256m
+    memswap_limit: 256m
 
   inventory:
-    build:
-      context: ../
-      dockerfile: services/inventory/Dockerfile
+    <<: *service
     container_name: rootcause-inventory
-    env_file: ../.env.example
-    ports:
-      - "3002:3002"
+    environment:
+      <<: *common-env
+      SERVICE: inventory
+      SERVICE_VERSION: ${INVENTORY_VERSION:-1.4.0}
+      POSTGRES_HOST: ${INVENTORY_POSTGRES_HOST:-postgres}
+      REDIS_HOST: ${INVENTORY_REDIS_HOST:-redis}
+    ports: ["3002:3002"]
     depends_on:
-      - postgres
-      - redis
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-    restart: unless-stopped
-    networks:
-      - rootcause
+      postgres: { condition: service_healthy }
+    mem_limit: 256m
+    memswap_limit: 256m
 
   payments:
-    build:
-      context: ../
-      dockerfile: services/payments/Dockerfile
+    <<: *service
     container_name: rootcause-payments
-    env_file: ../.env.example
-    ports:
-      - "3003:3003"
-    deploy:
-      resources:
-        limits:
-          memory: 128m
-    restart: unless-stopped
-    networks:
-      - rootcause
+    environment:
+      <<: *common-env
+      SERVICE: payments
+      SERVICE_VERSION: ${PAYMENTS_VERSION:-1.4.0}
+    ports: ["3003:3003"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    mem_limit: 128m
+    memswap_limit: 128m
+
+  loadgen:
+    <<: *service
+    container_name: rootcause-loadgen
+    environment:
+      SERVICE: loadgen
+      LOAD_RPS: ${LOAD_RPS:-20}
+    depends_on: [gateway]
+    mem_limit: 128m
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.53.0
     container_name: rootcause-prometheus
-    ports:
-      - "9090:9090"
+    ports: ["9090:9090"]
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-    networks:
-      - rootcause
-
-  loki:
-    image: grafana/loki:2.9.0
-    container_name: rootcause-loki
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
-    command: -config.file=/etc/loki/local-config.yaml
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-    networks:
-      - rootcause
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: rootcause-grafana
-    ports:
-      - "3333:3000"
-    volumes:
-      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-    networks:
-      - rootcause
+    mem_limit: 256m
+    restart: unless-stopped
+    networks: [rootcause]
 
 networks:
   rootcause:

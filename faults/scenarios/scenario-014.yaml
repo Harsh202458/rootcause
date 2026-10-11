@@ -8,16 +8,21 @@ alert:
 inject:
   - action: stop_container
     target: orders
-    params: {}
 revert:
   - action: start_container
     target: orders
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: include request id in access log"
+    diff_summary: "LOG_REQUEST_ID: false -> true"
+    minutes_before: 8
 ground_truth:
   component: orders
   category: dependency_down
   evidence:
-    - orders container stopped
-    - Gateway connection refused to orders
-decoy_deploys: []
+    - orders container is stopped
+    - gateway cannot connect to orders

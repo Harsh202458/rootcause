@@ -6,35 +6,32 @@ alert:
     severity: critical
   description: 5xx error rate above 5% on inventory
 inject:
-  - action: inject_code_fault
-    target: inventory
-    params:
-      file: src/routes/products.ts
-      fault: throw new TypeError("Cannot read properties of undefined");
-  - action: restart_service_with_version
+  - action: deploy
     target: inventory
     params:
       version: 1.4.1
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: inventory
-    params:
-      file: src/routes/products.ts
-  - action: restart_service_with_version
-    target: inventory
-    params:
-      version: 1.4.0
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.1
+    summary: "feat: return variant count with product"
+    diff_summary: "inventory/routes: add variantCount to GET /products/:id"
+    minutes_before: 0
+  - service: gateway
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: raise upstream timeout 4s -> 5s"
+    diff_summary: "UPSTREAM_TIMEOUT_MS: 4000 -> 5000"
+    minutes_before: 22
 ground_truth:
   component: inventory
   category: bad_code_deploy
   evidence:
-    - Deploy to 1.4.1
-    - 500s on /products
-decoy_deploys:
-  - service: inventory
-    kind: api_update
-    from_version: 1.4.0
-    to_version: 1.4.1
-    summary: "perf: optimize caching logic for products"
-    minutes_before: 3
+    - inventory 1.4.1 deployed when errors began
+    - TypeError in GET /products/:id

@@ -4,22 +4,29 @@ alert:
   labels:
     service: orders
     severity: warning
-  description: p95 latency above 2s on orders
+  description: p95 latency above threshold on orders
 inject:
   - action: run_sql
     target: postgres
     params:
-      query: DROP INDEX IF EXISTS idx_orders_customer_id;
+      query: DROP INDEX IF EXISTS idx_orders_customer_id
 revert:
   - action: run_sql
     target: postgres
     params:
-      query: CREATE INDEX idx_orders_customer_id ON orders(customer_id);
-warmup_seconds: 120
+      query: CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id)
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: include request id in access log"
+    diff_summary: "LOG_REQUEST_ID: false -> true"
+    minutes_before: 6
 ground_truth:
   component: postgres
   category: dropped_index
   evidence:
-    - Index idx_orders_customer_id missing
-    - High query latency on customer lookup
-decoy_deploys: []
+    - idx_orders_customer_id is missing
+    - GET /orders by customer is slow

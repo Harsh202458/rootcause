@@ -4,22 +4,29 @@ alert:
   labels:
     service: orders
     severity: warning
-  description: p95 latency above 2s on orders
+  description: p95 latency above threshold on orders
 inject:
   - action: run_sql
     target: postgres
     params:
-      query: DROP INDEX IF EXISTS idx_orders_created_at;
+      query: DROP INDEX IF EXISTS idx_orders_created_at
 revert:
   - action: run_sql
     target: postgres
     params:
-      query: CREATE INDEX idx_orders_created_at ON orders(created_at);
-warmup_seconds: 120
+      query: CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)
+warmup_seconds: 240
+deploys:
+  - service: gateway
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: raise upstream timeout 4s -> 5s"
+    diff_summary: "UPSTREAM_TIMEOUT_MS: 4000 -> 5000"
+    minutes_before: 2
 ground_truth:
   component: postgres
   category: dropped_index
   evidence:
-    - Index idx_orders_created_at missing
-    - High query latency on date range queries
-decoy_deploys: []
+    - idx_orders_created_at is missing
+    - GET /orders/recent is slow

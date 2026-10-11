@@ -6,22 +6,33 @@ alert:
     severity: critical
   description: 5xx error rate above 5% on orders
 inject:
-  - action: restart_service_with_env
+  - action: deploy
     target: orders
     params:
       env:
-        POSTGRES_HOST: bad-db-host
+        POSTGRES_HOST: pg-primary
 revert:
-  - action: restart_service_with_env
+  - action: deploy
     target: orders
-    params:
-      env:
-        POSTGRES_HOST: postgres
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: point orders at the primary database endpoint"
+    diff_summary: "POSTGRES_HOST: postgres -> pg-primary"
+    minutes_before: 0
+  - service: gateway
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: raise upstream timeout 4s -> 5s"
+    diff_summary: "UPSTREAM_TIMEOUT_MS: 4000 -> 5000"
+    minutes_before: 16
 ground_truth:
   component: orders
   category: wrong_config
   evidence:
-    - POSTGRES_HOST env var incorrect
-    - Cannot connect to postgres
-decoy_deploys: []
+    - orders cannot resolve pg-primary
+    - postgres itself is healthy

@@ -1,42 +1,41 @@
 import axios from 'axios';
 import { Tool, ToolResult } from './types';
-import { truncate } from './truncate';
+
+export interface FiringAlert {
+  name: string;
+  service: string;
+  severity: string;
+  firingSince: string;
+  summary: string;
+}
+
+export async function firingAlerts(): Promise<FiringAlert[]> {
+  const prometheusUrl = process.env.PROMETHEUS_URL || 'http://localhost:9090';
+  const response = await axios.get(`${prometheusUrl}/api/v1/alerts`, { timeout: 10000 });
+  return (response.data?.data?.alerts ?? [])
+    .filter((a: any) => a.state === 'firing')
+    .map((a: any) => ({
+      name: a.labels.alertname,
+      service: a.labels.job,
+      severity: a.labels.severity,
+      firingSince: a.activeAt,
+      summary: a.annotations?.summary ?? ''
+    }));
+}
 
 export const listAlertsTool: Tool = {
   definition: {
     name: 'list_alerts',
-    description: 'Queries Prometheus API for active alerts.',
-    parameters: {
-      type: 'object',
-      properties: {},
-      required: []
-    }
+    description:
+      'Lists every alert firing right now, with the service it fires on and since when. ' +
+      'Alerts describe symptoms; several services can alert because of one underlying cause.',
+    parameters: { type: 'object', properties: {} }
   },
-  async execute(args: Record<string, unknown>): Promise<ToolResult> {
-    const prometheusUrl = process.env.PROMETHEUS_URL || 'http://localhost:9090';
+  async execute(): Promise<ToolResult> {
     try {
-      const response = await axios.get(`${prometheusUrl}/api/v1/alerts`);
-      const alerts = response.data?.data?.alerts || [];
-      const formattedAlerts = alerts.map((alert: any) => ({
-        alertname: alert.labels.alertname,
-        labels: alert.labels,
-        state: alert.state,
-        activeAt: alert.activeAt,
-        value: alert.value,
-        description: alert.annotations?.description || ''
-      }));
-      
-      const json = JSON.stringify(formattedAlerts);
-      const truncated = truncate(json);
-      return {
-        data: formattedAlerts,
-        truncated: truncated.includes('[TRUNCATED')
-      };
+      return { data: await firingAlerts(), truncated: false };
     } catch (error: any) {
-      return {
-        data: { error: error.message },
-        truncated: false
-      };
+      return { data: { error: error.message }, truncated: false };
     }
   }
 };

@@ -8,16 +8,21 @@ alert:
 inject:
   - action: stop_container
     target: payments
-    params: {}
 revert:
   - action: start_container
     target: payments
-    params: {}
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: payments
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: rotate card processor credentials"
+    diff_summary: "PROCESSOR_API_KEY: (rotated)"
+    minutes_before: 24
 ground_truth:
   component: payments
   category: dependency_down
   evidence:
-    - payments container stopped
-    - Gateway connection refused to payments
-decoy_deploys: []
+    - payments container is stopped
+    - gateway cannot connect to payments

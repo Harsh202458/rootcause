@@ -9,19 +9,29 @@ inject:
   - action: run_sql
     target: postgres
     params:
-      query: ALTER TABLE products ALTER COLUMN price TYPE VARCHAR USING
-        price::VARCHAR;
+      query: ALTER TABLE products RENAME COLUMN stock TO stock_qty
 revert:
   - action: run_sql
     target: postgres
     params:
-      query: ALTER TABLE products ALTER COLUMN price TYPE NUMERIC USING
-        price::NUMERIC;
-warmup_seconds: 60
+      query: ALTER TABLE products RENAME COLUMN stock_qty TO stock
+warmup_seconds: 240
+deploys:
+  - service: postgres
+    kind: migration
+    summary: "migration: rename products.stock to stock_qty"
+    diff_summary: ALTER TABLE products RENAME COLUMN stock TO stock_qty
+    minutes_before: 0
+  - service: orders
+    kind: config
+    from_version: 1.4.0
+    to_version: 1.4.0
+    summary: "config: include request id in access log"
+    diff_summary: "LOG_REQUEST_ID: false -> true"
+    minutes_before: 23
 ground_truth:
   component: postgres
   category: bad_migration
   evidence:
-    - Column price changed to VARCHAR
-    - Type casting errors
-decoy_deploys: []
+    - "inventory queries fail: column stock does not exist"
+    - the column was renamed to stock_qty

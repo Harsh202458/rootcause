@@ -4,38 +4,32 @@ alert:
   labels:
     service: inventory
     severity: warning
-  description: Memory usage above threshold on inventory
+  description: Memory above 150MB on inventory
 inject:
-  - action: inject_code_fault
+  - action: deploy
     target: inventory
     params:
-      file: src/index.ts
-      fault: global.leak = global.leak || []; global.leak.push(new
-        Array(1000000).fill("C"));
-  - action: restart_service_with_version
-    target: inventory
-    params:
-      version: 1.4.1
+      version: 1.4.2
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: inventory
-    params:
-      file: src/index.ts
-  - action: restart_service_with_version
-    target: inventory
-    params:
-      version: 1.4.0
-warmup_seconds: 180
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.2
+    summary: "feat: track recently viewed products"
+    diff_summary: "inventory/routes: remember product views"
+    minutes_before: 0
+  - service: postgres
+    kind: migration
+    summary: "migration: document orders.payment_id"
+    diff_summary: COMMENT ON COLUMN orders.payment_id IS 'card processor reference'
+    minutes_before: 11
 ground_truth:
   component: inventory
   category: memory_leak
   evidence:
-    - OOM restarts
-    - Rising memory metrics
-decoy_deploys:
-  - service: inventory
-    kind: config_update
-    from_version: 1.4.0
-    to_version: 1.4.1
-    summary: "chore: update logging lib"
-    minutes_before: 5
+    - inventory memory climbs steadily
+    - inventory restarts after being killed for memory

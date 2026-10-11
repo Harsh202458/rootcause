@@ -4,31 +4,32 @@ alert:
   labels:
     service: inventory
     severity: warning
-  description: p95 latency above 2s on inventory
+  description: p95 latency above threshold on inventory
 inject:
-  - action: inject_code_fault
+  - action: deploy
     target: inventory
     params:
-      file: src/db.ts
-      fault: await new Promise(r => setTimeout(r, 5000));
-  - action: restart_service_with_version
-    target: inventory
-    params:
-      version: 1.4.1
+      version: 1.4.3
 revert:
-  - action: revert_code_fault
+  - action: deploy
     target: inventory
-    params:
-      file: src/db.ts
-  - action: restart_service_with_version
-    target: inventory
-    params:
-      version: 1.4.0
-warmup_seconds: 60
+warmup_seconds: 240
+deploys:
+  - service: inventory
+    kind: code
+    from_version: 1.4.0
+    to_version: 1.4.3
+    summary: "feat: locale-aware price formatting"
+    diff_summary: "inventory/routes: format price on GET /products/:id"
+    minutes_before: 0
+  - service: postgres
+    kind: migration
+    summary: "migration: document orders.payment_id"
+    diff_summary: COMMENT ON COLUMN orders.payment_id IS 'card processor reference'
+    minutes_before: 21
 ground_truth:
   component: inventory
   category: slow_dependency
   evidence:
-    - Code injection adding 5s delay
-    - Query execution times > 5s
-decoy_deploys: []
+    - inventory event loop lag is high
+    - GET /products/:id is slow, queries are not
