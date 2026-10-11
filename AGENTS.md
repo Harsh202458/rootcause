@@ -14,9 +14,8 @@ scores the agent against them.
 - Every phase ends with tests passing and a short walkthrough of what was built.
 
 ## Repo layout
-/services/gateway  /services/orders  /services/inventory  /services/payments
-/loadgen           traffic generator
-/infra             docker-compose.yml, Prometheus, Loki, Grafana config
+/services          the four services and the load generator (one codebase, one image)
+/infra             docker-compose.yml, Prometheus rules, database schema
 /faults            fault scenarios (YAML) and the injector
 /agent             agent loop, tools, LLM providers, tracing
 /evals             eval runner and reports

@@ -1,80 +1,53 @@
-import { createProvider } from './providers';
-import { runAgent, AgentConfig } from './loop';
-import { executeTool } from './tools/registry';
+import * as path from 'path';
 import dotenv from 'dotenv';
-import pino from 'pino';
+import { createProvider } from './providers';
+import { runAgent } from './loop';
+import { firingAlerts } from './tools/list-alerts';
+import { closeTracing } from './tracing';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const logger = pino({
-  transport: {
-    target: 'pino-pretty',
-    options: { colorize: true }
-  }
-});
-
+// Investigates the alert that is firing right now (or one passed with --alert).
 async function main() {
   const args = process.argv.slice(2);
   let providerName = 'gemini';
-  let alertDesc = '';
+  let alert = '';
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--provider' && i + 1 < args.length) {
-      providerName = args[i + 1]!;
-      i++;
-    } else if (args[i] === '--alert' && i + 1 < args.length) {
-      alertDesc = args[i + 1]!;
-      i++;
+    if (args[i] === '--provider') providerName = args[++i] ?? providerName;
+    else if (args[i] === '--alert') alert = args[++i] ?? '';
+  }
+
+  if (!alert) {
+    const alerts = await firingAlerts();
+    if (alerts.length === 0) {
+      console.log('No alert is firing. Inject a fault and wait about a minute, or pass --alert "<text>".');
+      return;
     }
+    // Page on the most severe alert, as an on-call rotation would.
+    const first = alerts.find(a => a.severity === 'critical') ?? alerts[0]!;
+    alert = `[${first.severity}] ${first.name} on ${first.service}: ${first.summary}`;
   }
+  console.log(`Alert: ${alert}\nInvestigating with ${providerName}...\n`);
 
-  if (!alertDesc) {
-    logger.info('No --alert provided, fetching currently firing alerts...');
-    try {
-      const result = await executeTool('list_alerts', {});
-      const alerts = result.data as Array<any>;
-      if (alerts && alerts.length > 0) {
-        const a = alerts[0];
-        alertDesc = `[${a.severity}] ${a.alertname}: ${a.summary} - ${a.description}`;
-        logger.info(`Picked alert: ${alertDesc}`);
-      } else {
-        logger.info('No firing alerts found.');
-        process.exit(0);
-      }
-    } catch (err: any) {
-      logger.error('Failed to list alerts:', err.message);
-      process.exit(1);
-    }
-  }
-
-  logger.info(`Initializing ${providerName} provider...`);
-  let provider;
-  try {
-    provider = createProvider(providerName as any);
-  } catch (err: any) {
-    logger.error(err.message);
-    process.exit(1);
-  }
-
-  const config: AgentConfig = { provider };
-
-  logger.info('Starting investigation loop...');
-  const result = await runAgent(alertDesc, config);
+  const provider = createProvider(providerName as 'gemini' | 'groq' | 'ollama');
+  const result = await runAgent(alert, { provider });
 
   if (result.report) {
-    logger.info('=== INVESTIGATION REPORT ===');
     console.log(JSON.stringify(result.report, null, 2));
   } else {
-    logger.warn('Agent failed to produce a report.');
-    if (result.error) logger.error(`Error: ${result.error}`);
+    console.log(`No report: ${result.error}`);
   }
-
-  logger.info(`Investigation finished in ${result.steps} steps. Tokens used: ${result.totalTokens}. Duration: ${result.durationMs}ms.`);
-  if (result.hitLimit) {
-    logger.warn(`Agent hit limit: ${result.hitLimit}`);
-  }
-
-  process.exit(0);
+  console.log(
+    `\nRun ${result.runId}: ${result.steps} steps, ${result.totalTokens} tokens, ${(result.durationMs / 1000).toFixed(0)}s` +
+      (result.hitLimit ? `, stopped at the ${result.hitLimit} limit` : '') +
+      `. Tools used: ${result.toolsUsed.join(', ')}`
+  );
 }
 
-main();
+main()
+  .catch(err => {
+    console.error(err.message ?? err);
+    process.exitCode = 1;
+  })
+  .finally(() => closeTracing());
