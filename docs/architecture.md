@@ -1,175 +1,68 @@
-# RootCause Architecture
+# Architecture
 
-## Overview
+## The pieces
 
-RootCause is structured as an npm workspaces monorepo with four layers:
+| Package | Role |
+|---|---|
+| `services/` | The demo system: gateway, orders, inventory, payments and the load generator. One codebase and one Docker image; the `SERVICE` variable picks the entry point. |
+| `infra/` | Docker Compose, Prometheus scrape config and alert rules, database schema. |
+| `faults/` | Scenario files, the injector, health checks, and the `verify` command. |
+| `agent/` | The agent loop, its tools, the LLM providers and run tracing. |
+| `evals/` | The eval runner, scoring and report generation. |
+| `dashboard/` | Next.js app: run list, step-by-step trace, eval results, fix approvals. |
 
-1. **Demo System** — The microservices being investigated
-2. **Observability** — The data sources the agent reads
-3. **Agent** — The investigation loop and tools
-4. **Eval** — The scoring and reporting framework
-
-## Demo System
-
-### Service Architecture
-
-```
-Client → Gateway (:3000) → Orders (:3001)    → PostgreSQL
-                         → Inventory (:3002)  → PostgreSQL + Redis
-                         → Payments (:3003)   (mock, no persistence)
-```
-
-**Checkout flow:**
-1. Gateway receives `POST /checkout { customerId, productId, quantity }`
-2. Gateway calls Inventory to get product price and verify stock
-3. Gateway calls Inventory to reserve stock (atomic decrement)
-4. Gateway calls Payments to process payment (mock, 50-200ms latency)
-5. Gateway calls Orders to create the order record
-6. Gateway returns the completed order to the client
-
-**Key design decisions:**
-- Connection pools are configurable (`DB_POOL_MIN`, `DB_POOL_MAX`) so fault injection can exhaust them
-- Redis caching in Inventory has a fallback to PostgreSQL, so Redis faults degrade performance but don't break functionality
-- Request IDs (`x-request-id`) propagate across all service calls for traceability
-- Each service has independent health checks and metrics endpoints
-
-### Database Schema
-
-Two databases:
-- `rootcause` — Application data (products, orders)
-- `ops` — Operational data (deploy events, runs, steps, fix proposals)
-
-The `agent_readonly` PostgreSQL role has SELECT-only access to both databases.
-
-## Observability Layer
-
-### Structured Logging (pino)
-Every log line includes: `timestamp`, `level`, `service`, `version`, `request_id`, `route`, `status`, `duration_ms`, `error`.
-
-Logs are shipped to Loki via pino-loki transport. A Loki outage never crashes a service.
-
-### Metrics (prom-client)
-Each service exposes `/metrics` with:
-- HTTP request count and duration histogram (by route and status)
-- Database pool stats (in-use, idle, waiting)
-- Database query duration histogram
-- Redis cache hit/miss counters (Inventory only)
-- Process memory and event loop lag
-
-### Deploy History
-The `deploy_events` table records every change:
-- `kind`: 'code' (version bump), 'config' (setting change), 'migration' (schema change)
-- Version tracking with `from_version` and `to_version`
-- Human-readable `summary` and `diff_summary`
-
-### Alerts
-Prometheus alert rules fire on:
-- High error rate (>5% 5xx for 1 minute)
-- High p95 latency (>2s for 1 minute)
-- Service down (unreachable for 30s)
-- High memory (>200MB for 2 minutes)
-
-## Agent
-
-### Tool Architecture
-
-The agent has 7 read-only tools plus `submit_report`:
-
-| Tool | Purpose | Data Source |
-|------|---------|-------------|
-| `list_alerts` | Currently firing alerts | Prometheus API |
-| `service_health` | Container status, version, memory | Docker Engine API |
-| `query_metrics` | Named metrics (no raw PromQL) | Prometheus API |
-| `query_logs` | Grouped log entries | Loki API / PostgreSQL |
-| `recent_deploys` | Deploy history | PostgreSQL (ops) |
-| `run_sql_readonly` | Ad-hoc SELECT queries | PostgreSQL (readonly role) |
-| `propose_fix` | Submit fix proposal | PostgreSQL (ops) - write |
-| `submit_report` | Final investigation report | In-memory validation |
-
-All tool outputs are truncated to 4,000 characters to prevent token budget blowout.
-
-### Investigation Loop
+## The demo system
 
 ```
-┌─────────────────────────────────────────────┐
-│ 1. Receive alert                            │
-│ 2. Initialize with system prompt + alert    │
-│ 3. Loop (max 15 steps):                     │
-│    a. Send messages to LLM                  │
-│    b. LLM returns tool calls or text        │
-│    c. Execute tools, add results to context │
-│    d. If submit_report: validate & return   │
-│ 4. If limit hit: force final report         │
-└─────────────────────────────────────────────┘
+loadgen -> gateway -> inventory -> postgres, redis
+                   -> payments
+                   -> orders    -> postgres
 ```
 
-### LLM Providers
+- **Checkout** reads the product, reserves stock (under a Redis lock), charges the card, then writes the order. Any upstream failure becomes a 502 at the gateway that names the upstream.
+- **Metrics.** Every service exposes request counts and durations by route, process memory and CPU, event loop lag, database pool gauges and query durations. Prometheus scrapes every 5 seconds.
+- **Logs.** Every request and every notable event is written to stdout and shipped in batches to the `logs` table in the `ops` database. The log connection is separate from the application database connection, so a service that loses its own database can still report it.
+- **Alerts.** Four rules: error rate above 5%, p95 latency above a threshold, service down, memory above 150 MB.
 
-Three swappable providers behind the `LLMProvider` interface:
-- **Gemini** (free tier) — generativelanguage.googleapis.com
-- **Groq** (free tier) — api.groq.com (OpenAI-compatible)
-- **Ollama** (local) — localhost:11434
+### How a fault reaches a service
 
-Each provider has:
-- Exponential backoff retry on rate limits (429)
-- Per-minute request limiter (respects free-tier limits)
-- Response caching (toggle with `RESPONSE_CACHE_ENABLED`)
+The Compose file reads each service's version and a few settings from variables such as `ORDERS_VERSION` and `INVENTORY_REDIS_HOST`. A deploy is the injector recreating that one container with a variable set, exactly as a release pipeline would roll a new version or config. `services/src/lib/release.ts` maps each version after 1.4.0 to one feature, and each feature carries one regression. Nothing in a running container says which.
 
-### System Prompt
+Other faults act from outside: SQL against the database, a held-open session for locks, Docker stop, pause and network disconnect, and one operator endpoint on payments that simulates a slow card processor.
 
-The system prompt teaches an investigation methodology:
-1. Confirm the symptom (alerts + metrics)
-2. Scope the impact (which services affected)
-3. Check what changed (recent deploys)
-4. Correlate with data (logs + metrics patterns)
-5. Form a hypothesis
-6. Verify (find evidence that could disprove it)
-7. Report with evidence-linked findings
+## The agent loop
 
-It contains NO hints about specific fault types.
+```
+alert -> [ model chooses tool calls -> tools run -> results appended ] -> submit_report
+```
 
-## Eval Framework
+1. The model receives a system prompt describing the system, and the alert text.
+2. Each turn it may call several tools. Results are truncated to 4,000 characters and prefixed with the call id, which the model cites later as evidence.
+3. `submit_report` is validated before it is accepted: the schema must hold, there must be at least one evidence item, and every cited id must be a tool call from this run. A rejected report goes back to the model with the reason.
+4. Limits: 15 steps, a token budget and a wall-clock timeout. At a limit the model gets one final call and must report; that report is kept but marked unverified.
 
-### Fault Injection
+Every model turn and tool call is written to the `runs` and `steps` tables. The agent's own database role cannot read them.
 
-30 scenarios across 10 fault categories:
+### Providers
 
-| # | Category | What Breaks |
-|---|----------|-------------|
-| 1 | bad_code_deploy | 500s on one route after version bump |
-| 2 | dropped_index | Latency climbs, slow queries |
-| 3 | memory_leak | Memory rises, container restarts |
-| 4 | wrong_config | Service can't reach DB/cache |
-| 5 | dependency_down | One service unreachable |
-| 6 | redis_unavailable | Cache misses spike |
-| 7 | connection_pool_exhaustion | Requests queue and timeout |
-| 8 | slow_dependency | Timeouts cascade |
-| 9 | long_running_lock | Table blocked by stuck transaction |
-| 10 | bad_migration | Column change breaks queries |
+`LLMProvider` is one method: `chat(messages, tools)`. The Gemini provider handles the details that differ from the generic shape: it mints its own tool call ids (Gemini has none), replays the model's original parts so thought signatures survive, sends all results for one turn together, paces requests to the free-tier rate, and separates a per-minute limit (wait and retry) from a daily one (stop).
 
-Each scenario has:
-- 2-4 decoy deploy events (so the latest deploy isn't always the culprit)
-- Ground truth (component + category + expected evidence)
-- Inject and revert steps for clean back-to-back execution
+## The eval
 
-### Scoring
+For each scenario:
 
-Deterministic (no LLM judge):
-- **Correct**: component AND category match ground truth
-- **Partial**: component matches, category doesn't
-- **Wrong**: neither matches
+1. **Clean history.** Wait for a healthy system, recreate Prometheus, clear logs, run 90 seconds of baseline.
+2. **Inject**, and record the scenario's deploy events (the culprit if there is one, plus harmless ones).
+3. **Wait for the alert** the agent will be paged with. If it never fires, the run stops.
+4. **Run the agent** with the alert text.
+5. **Score** component and category against ground truth. Store the verdict with the run.
+6. **Revert**, remove the scenario's deploy events, and wait for the system to recover.
 
-### Anti-Cheat Measures
+If the model is unavailable, the scenario is not scored and the run can be resumed. Results are written after every scenario.
 
-- Scenario IDs are opaque (`scenario-001`, not `bad-deploy-test`)
-- No fault type names in env vars, container labels, logs, or metrics
-- Deploy events during injection use realistic commit summaries
-- Leak audit test verifies no ground truth leakage in any observable surface
+### What keeps it honest
 
-## Tracing
-
-Every investigation run is recorded in the `ops` database:
-- `runs` table: alert, provider, model, report, totals
-- `steps` table: per-step messages, tool calls, results, token counts, durations
-
-The dashboard reads these tables to render the investigation timeline.
+- `npm run fault -- verify` proves each fault independently of the agent: alert fires, no giveaway words in logs or deploy history, system recovers.
+- The agent's tools expose no environment variables or labels, and its database role sees only application tables, deploy history and logs.
+- Scoring is a string comparison. There is no judge model to be lenient.
+- Failures of the harness or the provider stop the run instead of becoming wrong answers or, worse, invented ones.
