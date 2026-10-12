@@ -5,8 +5,8 @@ import { createProvider, type LLMProvider, recordVerdict, runAgent, type AgentCo
 import {
   Injector,
   delay,
-  isSettled,
   loadScenario,
+  startFromCleanHistory,
   unsupportedActions,
   waitForAlert,
   waitUntilSettled,
@@ -140,9 +140,8 @@ export async function runEvals(
       tokens = response.usage.totalTokens;
       answer = parseBaselineAnswer(response.text);
     } else {
-      if (!(await isSettled()) && !(await waitUntilSettled(180000))) {
-        throw new Error(`System is not healthy before ${scenario.id}. Fix it and re-run with --resume.`);
-      }
+      // Each incident starts on a healthy system with no trace of the previous one.
+      await startFromCleanHistory();
 
       await injector.inject(scenario.id, SCENARIOS_DIR);
       try {
