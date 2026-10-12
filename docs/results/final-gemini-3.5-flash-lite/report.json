@@ -1,6 +1,6 @@
 {
   "runId": "final-gemini-3.5-flash-lite",
-  "timestamp": "2026-10-12T16:42:12.643Z",
+  "timestamp": "2026-10-12T18:51:11.695Z",
   "config": {
     "provider": "gemini",
     "runId": "final-gemini-3.5-flash-lite",
@@ -10,11 +10,11 @@
     "model": "gemini-3.5-flash-lite"
   },
   "summary": {
-    "total": 4,
-    "correct": 4,
-    "partial": 0,
+    "total": 30,
+    "correct": 27,
+    "partial": 3,
     "wrong": 0,
-    "accuracy": 1,
+    "accuracy": 0.9,
     "partialAccuracy": 1
   },
   "byCategory": {
@@ -25,15 +25,63 @@
       "wrong": 0
     },
     "dropped_index": {
-      "total": 1,
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "memory_leak": {
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "wrong_config": {
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "dependency_down": {
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "redis_unavailable": {
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "connection_pool_exhaustion": {
+      "total": 3,
+      "correct": 2,
+      "partial": 1,
+      "wrong": 0
+    },
+    "slow_dependency": {
+      "total": 3,
       "correct": 1,
+      "partial": 2,
+      "wrong": 0
+    },
+    "long_running_lock": {
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "bad_migration": {
+      "total": 3,
+      "correct": 3,
       "partial": 0,
       "wrong": 0
     }
   },
-  "medianSteps": 5,
-  "medianTokens": 13395,
-  "medianDurationMs": 28212,
+  "medianSteps": 7,
+  "medianTokens": 27685.5,
+  "medianDurationMs": 43478.5,
   "results": [
     {
       "scenarioId": "scenario-001",
@@ -112,7 +160,568 @@
       ],
       "hitLimit": null,
       "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-005",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "dropped_index",
+      "truthComponent": "postgres",
+      "truthCategory": "dropped_index",
+      "steps": 13,
+      "tokens": 61546,
+      "durationMs": 80475,
+      "toolsUsed": [
+        "list_alerts",
+        "query_metrics",
+        "recent_deploys",
+        "run_sql_readonly",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-006",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "dropped_index",
+      "truthComponent": "postgres",
+      "truthCategory": "dropped_index",
+      "steps": 8,
+      "tokens": 25481,
+      "durationMs": 47287,
+      "toolsUsed": [
+        "list_alerts",
+        "query_metrics",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-007",
+      "score": "correct",
+      "agentComponent": "gateway",
+      "agentCategory": "memory_leak",
+      "truthComponent": "gateway",
+      "truthCategory": "memory_leak",
+      "steps": 9,
+      "tokens": 27297,
+      "durationMs": 54442,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "recent_deploys",
+        "query_metrics",
+        "query_logs",
+        "run_sql_readonly",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-008",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "memory_leak",
+      "truthComponent": "orders",
+      "truthCategory": "memory_leak",
+      "steps": 9,
+      "tokens": 27878,
+      "durationMs": 54177,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "recent_deploys",
+        "query_logs",
+        "query_metrics",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-009",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "memory_leak",
+      "truthComponent": "inventory",
+      "truthCategory": "memory_leak",
+      "steps": 9,
+      "tokens": 29861,
+      "durationMs": 53975,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "recent_deploys",
+        "query_metrics",
+        "query_logs",
+        "run_sql_readonly",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-010",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "wrong_config",
+      "truthComponent": "orders",
+      "truthCategory": "wrong_config",
+      "steps": 7,
+      "tokens": 27344,
+      "durationMs": 42873,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly",
+        "service_health",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-011",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "wrong_config",
+      "truthComponent": "inventory",
+      "truthCategory": "wrong_config",
+      "steps": 8,
+      "tokens": 30773,
+      "durationMs": 47447,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "service_health",
+        "run_sql_readonly",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-012",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "wrong_config",
+      "truthComponent": "inventory",
+      "truthCategory": "wrong_config",
+      "steps": 4,
+      "tokens": 11745,
+      "durationMs": 33514,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "service_health",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-013",
+      "score": "correct",
+      "agentComponent": "payments",
+      "agentCategory": "dependency_down",
+      "truthComponent": "payments",
+      "truthCategory": "dependency_down",
+      "steps": 8,
+      "tokens": 28186,
+      "durationMs": 47164,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-014",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "dependency_down",
+      "truthComponent": "orders",
+      "truthCategory": "dependency_down",
+      "steps": 6,
+      "tokens": 28799,
+      "durationMs": 34091,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "query_metrics",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-015",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "dependency_down",
+      "truthComponent": "inventory",
+      "truthCategory": "dependency_down",
+      "steps": 15,
+      "tokens": 103170,
+      "durationMs": 92850,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-016",
+      "score": "correct",
+      "agentComponent": "redis",
+      "agentCategory": "redis_unavailable",
+      "truthComponent": "redis",
+      "truthCategory": "redis_unavailable",
+      "steps": 6,
+      "tokens": 18005,
+      "durationMs": 34056,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "service_health",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-017",
+      "score": "correct",
+      "agentComponent": "redis",
+      "agentCategory": "redis_unavailable",
+      "truthComponent": "redis",
+      "truthCategory": "redis_unavailable",
+      "steps": 6,
+      "tokens": 16172,
+      "durationMs": 35642,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "service_health",
+        "recent_deploys"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-018",
+      "score": "correct",
+      "agentComponent": "redis",
+      "agentCategory": "redis_unavailable",
+      "truthComponent": "redis",
+      "truthCategory": "redis_unavailable",
+      "steps": 7,
+      "tokens": 21911,
+      "durationMs": 40870,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "service_health",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-019",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "connection_pool_exhaustion",
+      "truthComponent": "orders",
+      "truthCategory": "connection_pool_exhaustion",
+      "steps": 10,
+      "tokens": 56981,
+      "durationMs": 60470,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "run_sql_readonly",
+        "recent_deploys",
+        "service_health",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-020",
+      "score": "partial",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "inventory",
+      "truthCategory": "connection_pool_exhaustion",
+      "steps": 7,
+      "tokens": 31232,
+      "durationMs": 41318,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "run_sql_readonly",
+        "recent_deploys"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-021",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "connection_pool_exhaustion",
+      "truthComponent": "orders",
+      "truthCategory": "connection_pool_exhaustion",
+      "steps": 15,
+      "tokens": 85090,
+      "durationMs": 93408,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "run_sql_readonly",
+        "recent_deploys",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-022",
+      "score": "correct",
+      "agentComponent": "payments",
+      "agentCategory": "slow_dependency",
+      "truthComponent": "payments",
+      "truthCategory": "slow_dependency",
+      "steps": 9,
+      "tokens": 30931,
+      "durationMs": 54109,
+      "toolsUsed": [
+        "list_alerts",
+        "query_metrics",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-023",
+      "score": "partial",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "slow_dependency",
+      "steps": 13,
+      "tokens": 55318,
+      "durationMs": 82557,
+      "toolsUsed": [
+        "list_alerts",
+        "query_metrics",
+        "recent_deploys",
+        "run_sql_readonly",
+        "query_logs"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-024",
+      "score": "partial",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "inventory",
+      "truthCategory": "slow_dependency",
+      "steps": 5,
+      "tokens": 20230,
+      "durationMs": 28341,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "recent_deploys",
+        "query_metrics",
+        "query_logs",
+        "run_sql_readonly",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-025",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "long_running_lock",
+      "truthComponent": "postgres",
+      "truthCategory": "long_running_lock",
+      "steps": 7,
+      "tokens": 32930,
+      "durationMs": 44084,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-026",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "long_running_lock",
+      "truthComponent": "postgres",
+      "truthCategory": "long_running_lock",
+      "steps": 12,
+      "tokens": 66032,
+      "durationMs": 74284,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "run_sql_readonly",
+        "recent_deploys",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-027",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "long_running_lock",
+      "truthComponent": "postgres",
+      "truthCategory": "long_running_lock",
+      "steps": 6,
+      "tokens": 27493,
+      "durationMs": 35070,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "run_sql_readonly",
+        "recent_deploys"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-028",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "bad_migration",
+      "truthComponent": "postgres",
+      "truthCategory": "bad_migration",
+      "steps": 5,
+      "tokens": 15421,
+      "durationMs": 27656,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-029",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "bad_migration",
+      "truthComponent": "postgres",
+      "truthCategory": "bad_migration",
+      "steps": 6,
+      "tokens": 17875,
+      "durationMs": 34383,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-030",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "bad_migration",
+      "truthComponent": "postgres",
+      "truthCategory": "bad_migration",
+      "steps": 6,
+      "tokens": 17116,
+      "durationMs": 34473,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
     }
   ],
-  "failures": []
+  "failures": [
+    {
+      "scenarioId": "scenario-020",
+      "expected": {
+        "component": "inventory",
+        "category": "connection_pool_exhaustion"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected inventory/connection_pool_exhaustion, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-023",
+      "expected": {
+        "component": "orders",
+        "category": "slow_dependency"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected orders/slow_dependency, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-024",
+      "expected": {
+        "component": "inventory",
+        "category": "slow_dependency"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected inventory/slow_dependency, got inventory/bad_code_deploy"
+    }
+  ]
 }

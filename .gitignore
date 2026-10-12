@@ -29,3 +29,6 @@ Thumbs.db
 
 # Compiled output must never sit next to sources (jest would load it instead of the .ts)
 agent/src/**/*.js
+
+# Eval console logs
+docs/results/*.log
