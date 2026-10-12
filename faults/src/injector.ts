@@ -160,6 +160,7 @@ export class Injector {
     const scenario = loadScenario(scenarioId, scenariosDir);
     this.assertSupported(scenario);
 
+    await this.pruneLogs();
     await this.recordDeploys(scenario);
     for (const step of scenario.inject) {
       await this.execute(step);
@@ -195,6 +196,17 @@ export class Injector {
     const handler = HANDLERS[step.action];
     if (!handler) throw new Error(`Unsupported action: ${step.action}`);
     await handler(this, step);
+  }
+
+  /** Old log lines belong to earlier incidents and only slow searches down. */
+  private async pruneLogs(): Promise<void> {
+    const client = new Client({ connectionString: OPS_DB_URL });
+    await client.connect();
+    try {
+      await client.query("DELETE FROM logs WHERE ts < NOW() - interval '30 minutes'");
+    } finally {
+      await client.end();
+    }
   }
 
   private async recordDeploys(scenario: Scenario): Promise<void> {

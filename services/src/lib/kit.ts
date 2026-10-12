@@ -42,12 +42,22 @@ interface LogRow {
 const MAX_BUFFERED = 5000;
 const buffer: LogRow[] = [];
 const logPool = process.env.LOG_DB_URL
-  ? new Pool({ connectionString: process.env.LOG_DB_URL, max: 2, connectionTimeoutMillis: 2000 })
+  ? new Pool({
+      connectionString: process.env.LOG_DB_URL,
+      max: 1,
+      // Keep the connection open: reconnecting needs a DNS lookup, and those
+      // queue behind the service's own failing lookups during an incident.
+      idleTimeoutMillis: 0,
+      connectionTimeoutMillis: 10000
+    })
   : null;
 logPool?.on('error', () => undefined);
 
+let flushing = false;
+
 async function flushLogs(): Promise<void> {
-  if (!logPool || buffer.length === 0) return;
+  if (!logPool || buffer.length === 0 || flushing) return;
+  flushing = true;
   const rows = buffer.splice(0, 500);
   try {
     await logPool.query(
@@ -68,7 +78,10 @@ async function flushLogs(): Promise<void> {
       ]
     );
   } catch {
-    // Shipping is best effort; the lines are already on stdout.
+    // Put the batch back so an outage of the log store does not lose lines.
+    if (buffer.length + rows.length <= MAX_BUFFERED) buffer.unshift(...rows);
+  } finally {
+    flushing = false;
   }
 }
 setInterval(flushLogs, 1000).unref();

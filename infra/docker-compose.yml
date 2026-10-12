@@ -11,6 +11,8 @@ x-service: &service
 
 x-common-env: &common-env
   LOG_DB_URL: postgres://rootcause:rootcause_password@postgres:5432/ops
+  # DNS lookups run on this pool; the default of 4 is exhausted by a few slow ones.
+  UV_THREADPOOL_SIZE: "32"
 
 services:
   postgres:

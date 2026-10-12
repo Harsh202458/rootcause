@@ -32,6 +32,11 @@ const METRICS: Record<string, { query: string; unit: string; help: string }> = {
     help: '95th percentile request duration, per route'
   },
   memory: { query: 'process_resident_memory_bytes{$sel} / 1e6', unit: 'MB', help: 'resident memory of the process' },
+  cpu: {
+    query: 'rate(process_cpu_seconds_total{$sel}[1m])',
+    unit: 'CPU cores in use (1.0 = one core fully busy)',
+    help: 'CPU the service process is using'
+  },
   event_loop_lag: {
     query: 'nodejs_eventloop_lag_p99_seconds{$sel}',
     unit: 'seconds',

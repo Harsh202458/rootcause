@@ -27,7 +27,9 @@ export const runSqlReadonlyTool: Tool = {
   definition: {
     name: 'run_sql_readonly',
     description:
-      'Run one read-only SELECT against the application database ("rootcause") or the ops database ("ops", deploy history only). ' +
+      'Run one read-only SELECT against the application database ("rootcause": tables products, orders) or the ops database ' +
+      '("ops": deploy_events(timestamp, service, kind, from_version, to_version, summary, diff_summary) and ' +
+      'logs(ts, service, version, level, request_id, route, status, duration_ms, message, error); recent_deploys and query_logs are usually easier). ' +
       'Returns at most 50 rows and times out after 3 seconds. Useful system views: pg_stat_activity, pg_locks, pg_indexes, information_schema.columns.',
     parameters: {
       type: 'object',

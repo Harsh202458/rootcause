@@ -1,0 +1,773 @@
+{
+  "runId": "gemini-3.5-flash-lite-alert-only",
+  "timestamp": "2026-10-11T20:00:36.640Z",
+  "config": {
+    "provider": "gemini",
+    "runId": "gemini-3.5-flash-lite-alert-only",
+    "toolSet": "full",
+    "baseline": true,
+    "resumable": true,
+    "model": "gemini-3.5-flash-lite"
+  },
+  "summary": {
+    "total": 30,
+    "correct": 8,
+    "partial": 6,
+    "wrong": 16,
+    "accuracy": 0.26666666666666666,
+    "partialAccuracy": 0.4666666666666667
+  },
+  "byCategory": {
+    "bad_code_deploy": {
+      "total": 3,
+      "correct": 2,
+      "partial": 1,
+      "wrong": 0
+    },
+    "dropped_index": {
+      "total": 3,
+      "correct": 1,
+      "partial": 0,
+      "wrong": 2
+    },
+    "memory_leak": {
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "wrong_config": {
+      "total": 3,
+      "correct": 0,
+      "partial": 2,
+      "wrong": 1
+    },
+    "dependency_down": {
+      "total": 3,
+      "correct": 0,
+      "partial": 0,
+      "wrong": 3
+    },
+    "redis_unavailable": {
+      "total": 3,
+      "correct": 0,
+      "partial": 0,
+      "wrong": 3
+    },
+    "connection_pool_exhaustion": {
+      "total": 3,
+      "correct": 0,
+      "partial": 3,
+      "wrong": 0
+    },
+    "slow_dependency": {
+      "total": 3,
+      "correct": 2,
+      "partial": 0,
+      "wrong": 1
+    },
+    "long_running_lock": {
+      "total": 3,
+      "correct": 0,
+      "partial": 0,
+      "wrong": 3
+    },
+    "bad_migration": {
+      "total": 3,
+      "correct": 0,
+      "partial": 0,
+      "wrong": 3
+    }
+  },
+  "medianSteps": 1,
+  "medianTokens": 127,
+  "medianDurationMs": 6473.5,
+  "results": [
+    {
+      "scenarioId": "scenario-001",
+      "score": "partial",
+      "agentComponent": "gateway",
+      "agentCategory": "wrong_config",
+      "truthComponent": "gateway",
+      "truthCategory": "bad_code_deploy",
+      "steps": 1,
+      "tokens": 127,
+      "durationMs": 1053,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-002",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "bad_code_deploy",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6619,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-003",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "inventory",
+      "truthCategory": "bad_code_deploy",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6207,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-004",
+      "score": "wrong",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "dropped_index",
+      "steps": 1,
+      "tokens": 123,
+      "durationMs": 6444,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-005",
+      "score": "wrong",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "dropped_index",
+      "steps": 1,
+      "tokens": 125,
+      "durationMs": 6458,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-006",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "dropped_index",
+      "truthComponent": "postgres",
+      "truthCategory": "dropped_index",
+      "steps": 1,
+      "tokens": 126,
+      "durationMs": 6457,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-007",
+      "score": "correct",
+      "agentComponent": "gateway",
+      "agentCategory": "memory_leak",
+      "truthComponent": "gateway",
+      "truthCategory": "memory_leak",
+      "steps": 1,
+      "tokens": 121,
+      "durationMs": 6579,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-008",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "memory_leak",
+      "truthComponent": "orders",
+      "truthCategory": "memory_leak",
+      "steps": 1,
+      "tokens": 121,
+      "durationMs": 6513,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-009",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "memory_leak",
+      "truthComponent": "inventory",
+      "truthCategory": "memory_leak",
+      "steps": 1,
+      "tokens": 121,
+      "durationMs": 6531,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-010",
+      "score": "partial",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "wrong_config",
+      "steps": 1,
+      "tokens": 126,
+      "durationMs": 6524,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-011",
+      "score": "partial",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "inventory",
+      "truthCategory": "wrong_config",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6518,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-012",
+      "score": "wrong",
+      "agentComponent": "postgres",
+      "agentCategory": "connection_pool_exhaustion",
+      "truthComponent": "inventory",
+      "truthCategory": "wrong_config",
+      "steps": 1,
+      "tokens": 130,
+      "durationMs": 6451,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-013",
+      "score": "wrong",
+      "agentComponent": "gateway",
+      "agentCategory": "wrong_config",
+      "truthComponent": "payments",
+      "truthCategory": "dependency_down",
+      "steps": 1,
+      "tokens": 127,
+      "durationMs": 6910,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-014",
+      "score": "wrong",
+      "agentComponent": "gateway",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "dependency_down",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6130,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-015",
+      "score": "wrong",
+      "agentComponent": "gateway",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "inventory",
+      "truthCategory": "dependency_down",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6489,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-016",
+      "score": "wrong",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "redis",
+      "truthCategory": "redis_unavailable",
+      "steps": 1,
+      "tokens": 126,
+      "durationMs": 6323,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-017",
+      "score": "wrong",
+      "agentComponent": "postgres",
+      "agentCategory": "connection_pool_exhaustion",
+      "truthComponent": "redis",
+      "truthCategory": "redis_unavailable",
+      "steps": 1,
+      "tokens": 130,
+      "durationMs": 6720,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-018",
+      "score": "wrong",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "redis",
+      "truthCategory": "redis_unavailable",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6434,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-019",
+      "score": "partial",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "connection_pool_exhaustion",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6652,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-020",
+      "score": "partial",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "inventory",
+      "truthCategory": "connection_pool_exhaustion",
+      "steps": 1,
+      "tokens": 124,
+      "durationMs": 6637,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-021",
+      "score": "partial",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "connection_pool_exhaustion",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6327,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-022",
+      "score": "correct",
+      "agentComponent": "payments",
+      "agentCategory": "slow_dependency",
+      "truthComponent": "payments",
+      "truthCategory": "slow_dependency",
+      "steps": 1,
+      "tokens": 126,
+      "durationMs": 6410,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-023",
+      "score": "wrong",
+      "agentComponent": "postgres",
+      "agentCategory": "dropped_index",
+      "truthComponent": "orders",
+      "truthCategory": "slow_dependency",
+      "steps": 1,
+      "tokens": 126,
+      "durationMs": 6899,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-024",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "slow_dependency",
+      "truthComponent": "inventory",
+      "truthCategory": "slow_dependency",
+      "steps": 1,
+      "tokens": 126,
+      "durationMs": 6140,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-025",
+      "score": "wrong",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "long_running_lock",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6438,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-026",
+      "score": "wrong",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "long_running_lock",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6712,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-027",
+      "score": "wrong",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "long_running_lock",
+      "steps": 1,
+      "tokens": 124,
+      "durationMs": 6284,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-028",
+      "score": "wrong",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "bad_migration",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6546,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-029",
+      "score": "wrong",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "bad_migration",
+      "steps": 1,
+      "tokens": 124,
+      "durationMs": 6414,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    },
+    {
+      "scenarioId": "scenario-030",
+      "score": "wrong",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "postgres",
+      "truthCategory": "bad_migration",
+      "steps": 1,
+      "tokens": 129,
+      "durationMs": 6683,
+      "toolsUsed": [],
+      "hitLimit": null,
+      "evidenceVerified": false
+    }
+  ],
+  "failures": [
+    {
+      "scenarioId": "scenario-001",
+      "expected": {
+        "component": "gateway",
+        "category": "bad_code_deploy"
+      },
+      "actual": {
+        "component": "gateway",
+        "category": "wrong_config"
+      },
+      "explanation": "Expected gateway/bad_code_deploy, got gateway/wrong_config"
+    },
+    {
+      "scenarioId": "scenario-004",
+      "expected": {
+        "component": "postgres",
+        "category": "dropped_index"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/dropped_index, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-005",
+      "expected": {
+        "component": "postgres",
+        "category": "dropped_index"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/dropped_index, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-010",
+      "expected": {
+        "component": "orders",
+        "category": "wrong_config"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected orders/wrong_config, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-011",
+      "expected": {
+        "component": "inventory",
+        "category": "wrong_config"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected inventory/wrong_config, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-012",
+      "expected": {
+        "component": "inventory",
+        "category": "wrong_config"
+      },
+      "actual": {
+        "component": "postgres",
+        "category": "connection_pool_exhaustion"
+      },
+      "explanation": "Expected inventory/wrong_config, got postgres/connection_pool_exhaustion"
+    },
+    {
+      "scenarioId": "scenario-013",
+      "expected": {
+        "component": "payments",
+        "category": "dependency_down"
+      },
+      "actual": {
+        "component": "gateway",
+        "category": "wrong_config"
+      },
+      "explanation": "Expected payments/dependency_down, got gateway/wrong_config"
+    },
+    {
+      "scenarioId": "scenario-014",
+      "expected": {
+        "component": "orders",
+        "category": "dependency_down"
+      },
+      "actual": {
+        "component": "gateway",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected orders/dependency_down, got gateway/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-015",
+      "expected": {
+        "component": "inventory",
+        "category": "dependency_down"
+      },
+      "actual": {
+        "component": "gateway",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected inventory/dependency_down, got gateway/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-016",
+      "expected": {
+        "component": "redis",
+        "category": "redis_unavailable"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected redis/redis_unavailable, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-017",
+      "expected": {
+        "component": "redis",
+        "category": "redis_unavailable"
+      },
+      "actual": {
+        "component": "postgres",
+        "category": "connection_pool_exhaustion"
+      },
+      "explanation": "Expected redis/redis_unavailable, got postgres/connection_pool_exhaustion"
+    },
+    {
+      "scenarioId": "scenario-018",
+      "expected": {
+        "component": "redis",
+        "category": "redis_unavailable"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected redis/redis_unavailable, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-019",
+      "expected": {
+        "component": "orders",
+        "category": "connection_pool_exhaustion"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected orders/connection_pool_exhaustion, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-020",
+      "expected": {
+        "component": "inventory",
+        "category": "connection_pool_exhaustion"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected inventory/connection_pool_exhaustion, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-021",
+      "expected": {
+        "component": "orders",
+        "category": "connection_pool_exhaustion"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected orders/connection_pool_exhaustion, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-023",
+      "expected": {
+        "component": "orders",
+        "category": "slow_dependency"
+      },
+      "actual": {
+        "component": "postgres",
+        "category": "dropped_index"
+      },
+      "explanation": "Expected orders/slow_dependency, got postgres/dropped_index"
+    },
+    {
+      "scenarioId": "scenario-025",
+      "expected": {
+        "component": "postgres",
+        "category": "long_running_lock"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/long_running_lock, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-026",
+      "expected": {
+        "component": "postgres",
+        "category": "long_running_lock"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/long_running_lock, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-027",
+      "expected": {
+        "component": "postgres",
+        "category": "long_running_lock"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/long_running_lock, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-028",
+      "expected": {
+        "component": "postgres",
+        "category": "bad_migration"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/bad_migration, got orders/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-029",
+      "expected": {
+        "component": "postgres",
+        "category": "bad_migration"
+      },
+      "actual": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/bad_migration, got inventory/bad_code_deploy"
+    },
+    {
+      "scenarioId": "scenario-030",
+      "expected": {
+        "component": "postgres",
+        "category": "bad_migration"
+      },
+      "actual": {
+        "component": "orders",
+        "category": "bad_code_deploy"
+      },
+      "explanation": "Expected postgres/bad_migration, got orders/bad_code_deploy"
+    }
+  ]
+}
