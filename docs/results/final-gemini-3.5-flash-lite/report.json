@@ -1,0 +1,118 @@
+{
+  "runId": "final-gemini-3.5-flash-lite",
+  "timestamp": "2026-10-12T16:42:12.643Z",
+  "config": {
+    "provider": "gemini",
+    "runId": "final-gemini-3.5-flash-lite",
+    "toolSet": "full",
+    "baseline": false,
+    "resumable": true,
+    "model": "gemini-3.5-flash-lite"
+  },
+  "summary": {
+    "total": 4,
+    "correct": 4,
+    "partial": 0,
+    "wrong": 0,
+    "accuracy": 1,
+    "partialAccuracy": 1
+  },
+  "byCategory": {
+    "bad_code_deploy": {
+      "total": 3,
+      "correct": 3,
+      "partial": 0,
+      "wrong": 0
+    },
+    "dropped_index": {
+      "total": 1,
+      "correct": 1,
+      "partial": 0,
+      "wrong": 0
+    }
+  },
+  "medianSteps": 5,
+  "medianTokens": 13395,
+  "medianDurationMs": 28212,
+  "results": [
+    {
+      "scenarioId": "scenario-001",
+      "score": "correct",
+      "agentComponent": "gateway",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "gateway",
+      "truthCategory": "bad_code_deploy",
+      "steps": 4,
+      "tokens": 13645,
+      "durationMs": 21951,
+      "toolsUsed": [
+        "list_alerts",
+        "query_metrics",
+        "recent_deploys",
+        "query_logs",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-002",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "bad_code_deploy",
+      "steps": 5,
+      "tokens": 13145,
+      "durationMs": 28203,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-003",
+      "score": "correct",
+      "agentComponent": "inventory",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "inventory",
+      "truthCategory": "bad_code_deploy",
+      "steps": 5,
+      "tokens": 12889,
+      "durationMs": 28221,
+      "toolsUsed": [
+        "list_alerts",
+        "query_logs",
+        "recent_deploys",
+        "propose_fix"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-004",
+      "score": "correct",
+      "agentComponent": "postgres",
+      "agentCategory": "dropped_index",
+      "truthComponent": "postgres",
+      "truthCategory": "dropped_index",
+      "steps": 9,
+      "tokens": 32368,
+      "durationMs": 54287,
+      "toolsUsed": [
+        "list_alerts",
+        "query_metrics",
+        "recent_deploys",
+        "query_logs",
+        "run_sql_readonly"
+      ],
+      "hitLimit": null,
+      "evidenceVerified": true
+    }
+  ],
+  "failures": []
+}

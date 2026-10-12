@@ -8,6 +8,8 @@ let pool: Pool | null = null;
 function getPool(): Pool {
   if (!pool) {
     pool = new Pool({ connectionString: OPS_DB_URL });
+    // An idle connection dropped by the server must not crash the run.
+    pool.on('error', () => undefined);
   }
   return pool;
 }

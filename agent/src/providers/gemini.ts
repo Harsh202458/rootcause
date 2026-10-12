@@ -155,7 +155,9 @@ export class GeminiProvider implements LLMProvider {
         if (status === 429 && /per ?day|daily/i.test(JSON.stringify(err.response?.data ?? ''))) {
           throw new QuotaExhaustedError(`Gemini daily quota exhausted: ${message}`);
         }
-        if ((status === 429 || status === 503) && attempts < 6) {
+        // No response at all: a timeout or a dropped connection. Worth retrying.
+        const networkFailure = !err.response;
+        if ((status === 429 || status === 503 || status === 500 || networkFailure) && attempts < 6) {
           attempts++;
           const hinted = /retry in ([\d.]+)s/i.exec(message);
           const waitTime = hinted ? Math.ceil(Number(hinted[1]) * 1000) + 1000 : Math.min(2 ** attempts * 2000, 60000);
