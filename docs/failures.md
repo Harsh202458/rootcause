@@ -62,7 +62,13 @@ The first full eval (kept as `docs/results/v1-gemini-3.5-flash-lite`) scored 25 
 
 **What I would try next.** Rename the category to describe the service itself, validate the rubric on scenarios the agent has not been tuned against, and compare a larger model on the same two cases to see whether this is a limit of the model or of the wording.
 
+## 5. One scenario moves between runs
+
+**Scenario 020** (the inventory connection leak) was correct in a targeted re-run and partial in the final full run, with no change in between. The agent's explanation was right both times; only the label differed.
+
+**Lesson.** A single run of 30 scenarios is good to within a scenario or two. Reporting 27 of 30 as "about 90%" is fair; reading meaning into 27 versus 28 is not. Running each scenario several times and reporting the spread would fix this, and costs more free-tier quota than was available.
+
 ## What the comparison runs show
 
 - **Alert-only baseline: 8 of 30.** One model call that sees only the alert text. The alert does not give the answer away; the gap to the agent's score is what investigation is worth.
-- Other comparisons are in the README results table.
+- **First version versus final: 25 to 27 of 30.** The gain came from fixing the telemetry, the rubric and the harness, as described above, not from changing the model.

@@ -5,7 +5,31 @@ An LLM agent that is paged with a production alert, investigates a running micro
 ## Results
 
 <!-- RESULTS:START -->
-The eval is running. This section is filled from `docs/results/` when it finishes.
+**27 of 30 incidents diagnosed correctly (90%), and the right component named in all 30.** Gemini 3.5 Flash-Lite, free tier, one run of each configuration.
+
+| Configuration | Correct | Right component | Median steps | Median tokens | Median time |
+|---|---|---|---|---|---|
+| **Agent with tools** | **27 / 30** | **30 / 30** | 7 | 27,700 | 43 s |
+| Alert only, no tools (one model call) | 8 / 30 | 14 / 30 | 1 | 130 | 6 s |
+| Agent, first version (before the fixes below) | 25 / 30 | 30 / 30 | 9 | 37,000 | 55 s |
+
+"Correct" means component and category both match. All 30 reports in the main run cited evidence from real tool calls, and none hit the step limit.
+
+By category, main run:
+
+| Category | Correct | | Category | Correct |
+|---|---|---|---|---|
+| Bad code deploy | 3 / 3 | | Redis unavailable | 3 / 3 |
+| Dropped index | 3 / 3 | | Long-running lock | 3 / 3 |
+| Memory leak | 3 / 3 | | Bad migration | 3 / 3 |
+| Wrong config | 3 / 3 | | Connection pool exhaustion | 2 / 3 |
+| Dependency down | 3 / 3 | | Slow dependency | 1 / 3 |
+
+**What the three misses are.** In each, a release introduced the problem and the agent named the right service and described the mechanism correctly in its explanation (a connection leak, or CPU work per request), then filed it under `bad_code_deploy` instead of the specific category.
+
+**What moved the score from 25 to 27** was not the model. Reading the failed traces showed that a broken service's error logs were being dropped before they reached the log store, that two categories overlapped, and that back-to-back scenarios were leaking into each other. [docs/failures.md](docs/failures.md) has the details.
+
+**How to read these numbers.** Each configuration was run once and LLM output varies: one scenario flipped between correct and partial across two runs with no change in between. Three scenarios per category is a small sample. The agent's instructions and the category definitions were developed against these same 30 scenarios, so this is not a held-out test. Full reports are in `docs/results/`.
 <!-- RESULTS:END -->
 
 ## How it works
@@ -69,7 +93,8 @@ A score only means something if the agent cannot cheat and the harness cannot fl
 - **The agent cannot see ground truth.** Its database role cannot read past runs or reports. Tool output never includes environment variables or container labels.
 - **Faults look like real life.** A code fault ships as a new version with a plausible commit message. Each scenario also records harmless recent deploys, so "blame the latest deploy" does not work.
 - **Alerts state symptoms only.** The four alert rules are error rate, latency, service down and memory.
-- **No invented results.** The eval starts the agent only after the expected alert is firing. If a fault cannot be injected, an API key is missing, or the model is unavailable, the run stops without scoring that scenario and can be resumed.
+- **Scenarios are independent.** Each one starts from a clean metrics and log history with a fresh 90-second healthy baseline, so the previous incident cannot be mistaken for the current one.
+- **No invented results.** The eval starts the agent only after the expected alert is firing. If a fault cannot be injected, an API key is missing, or the model is unavailable or too slow to answer in time, the run stops without scoring that scenario and can be resumed.
 - **Deterministic scoring.** Correct means component and category both match. Partial means component only.
 
 ## Fault categories
