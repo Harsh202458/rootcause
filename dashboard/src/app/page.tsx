@@ -63,8 +63,8 @@ export default function RunsPage() {
             className="bg-slate-800 border border-slate-700 rounded px-3 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Providers</option>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
+            <option value="gemini">Gemini</option>
+            <option value="groq">Groq</option>
           </select>
           <select 
             value={verdictFilter} 

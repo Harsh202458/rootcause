@@ -32,3 +32,6 @@ agent/src/**/*.js
 
 # Eval console logs
 docs/results/*.log
+
+# Local tool config
+.claude/

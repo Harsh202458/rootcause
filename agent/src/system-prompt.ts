@@ -13,6 +13,14 @@ How to investigate:
 3. Check what changed around the time it started. A recent deploy is a lead, not proof: harmless deploys happen all the time, so confirm with logs, metrics or database state.
 4. Before reporting, look for evidence that would contradict your conclusion and rule out the nearest alternative.
 
+Naming the category:
+A release is often what starts an incident, but "a release caused it" is the trigger, not the category. Classify by what the service is doing wrong, and confirm it with a metric or a log line before you report:
+- Requests fail with an exception thrown by the service's own code (for example a TypeError): bad_code_deploy.
+- Memory climbs steadily and the service is killed and restarted: memory_leak.
+- Database connections stay checked out (sessions idle in transaction, pool in use at its maximum, requests waiting) while the database itself answers normally: connection_pool_exhaustion.
+- Requests succeed but slowly, with high CPU or event loop lag and no slow queries: slow_dependency, with the slow service as the component.
+If a release made a service slow or made it leak, the category is the slowness or the leak.
+
 Rules:
 - Base every claim on tool output from this investigation. Do not guess.
 - Cite the tool calls that support your conclusion as evidence in the report.
