@@ -164,6 +164,10 @@ scripts/     up, down, seed
 docs/        Architecture notes and eval results
 ```
 
+## Continuous integration
+
+`docs/ci-workflow.yml` is a GitHub Actions workflow that builds every package and runs the unit tests. To enable it, copy it to `.github/workflows/ci.yml`. It is not active in this repository yet and has not been run on GitHub.
+
 ## Limitations
 
 - The demo system is four services. A real one has hundreds, and far noisier logs.
