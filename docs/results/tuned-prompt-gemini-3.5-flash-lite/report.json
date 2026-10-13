@@ -1,0 +1,114 @@
+{
+  "runId": "tuned-prompt-gemini-3.5-flash-lite",
+  "timestamp": "2026-10-13T16:01:24.428Z",
+  "config": {
+    "provider": "gemini",
+    "runId": "tuned-prompt-gemini-3.5-flash-lite",
+    "toolSet": "full",
+    "baseline": false,
+    "resumable": true,
+    "model": "gemini-3.5-flash-lite"
+  },
+  "summary": {
+    "total": 5,
+    "correct": 2,
+    "partial": 0,
+    "wrong": 3,
+    "accuracy": 0.4,
+    "partialAccuracy": 0.4
+  },
+  "byCategory": {
+    "bad_code_deploy": {
+      "total": 3,
+      "correct": 2,
+      "partial": 0,
+      "wrong": 1
+    },
+    "dropped_index": {
+      "total": 2,
+      "correct": 0,
+      "partial": 0,
+      "wrong": 2
+    }
+  },
+  "medianSteps": 3,
+  "medianTokens": 7999,
+  "medianDurationMs": 1191160,
+  "results": [
+    {
+      "scenarioId": "scenario-001",
+      "score": "correct",
+      "agentComponent": "gateway",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "gateway",
+      "truthCategory": "bad_code_deploy",
+      "steps": 5,
+      "tokens": 13799,
+      "durationMs": 438694,
+      "toolsUsed": [
+        "list_alerts",
+        "query_metrics",
+        "query_logs",
+        "recent_deploys"
+      ],
+      "hitLimit": "timeout",
+      "evidenceVerified": true
+    },
+    {
+      "scenarioId": "scenario-002",
+      "score": "correct",
+      "agentComponent": "orders",
+      "agentCategory": "bad_code_deploy",
+      "truthComponent": "orders",
+      "truthCategory": "bad_code_deploy",
+      "steps": 2,
+      "tokens": 5694,
+      "durationMs": 1441356,
+      "toolsUsed": [
+        "list_alerts",
+        "service_health",
+        "query_logs"
+      ],
+      "hitLimit": "timeout",
+      "evidenceVerified": true
+    }
+  ],
+  "failures": [
+    {
+      "scenarioId": "scenario-003",
+      "expected": {
+        "component": "inventory",
+        "category": "bad_code_deploy"
+      },
+      "actual": {
+        "component": "unknown",
+        "category": "unknown"
+      },
+      "explanation": "Agent did not produce a valid report"
+    },
+    {
+      "scenarioId": "scenario-004",
+      "expected": {
+        "component": "postgres",
+        "category": "dropped_index"
+      },
+      "actual": {
+        "component": "unknown",
+        "category": "unknown"
+      },
+      "explanation": "Agent did not produce a valid report"
+    },
+    {
+      "scenarioId": "scenario-005",
+      "expected": {
+        "component": "postgres",
+        "category": "dropped_index"
+      },
+      "actual": {
+        "component": "unknown",
+        "category": "unknown"
+      },
+      "explanation": "Agent did not produce a valid report"
+    }
+  ]
+}

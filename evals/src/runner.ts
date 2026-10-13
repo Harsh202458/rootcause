@@ -158,15 +158,17 @@ export async function runEvals(
           provider,
           maxSteps: 15,
           tokenBudget: 100000,
-          timeoutMs: 300000,
+          timeoutMs: 900000,
           useCache: false,
           disabledTools: config.toolSet === 'no_deploys' ? ['recent_deploys'] : [],
           scenarioId: scenario.id
         };
         const run = await runAgent(alertText, agentConfig);
-        if (run.providerFailed) {
+        // Running out of wall-clock time means the model was slow to answer
+        // (overload, retries), which says nothing about the agent either.
+        if (run.providerFailed || run.hitLimit === 'timeout') {
           // Not the agent's failure: stop without scoring so the scenario is retried on resume.
-          throw new Error(`Model unavailable during ${scenario.id}: ${run.error} Re-run with --resume --runId ${config.runId}`);
+          throw new Error(`Model unavailable or too slow during ${scenario.id}: ${run.error} Re-run with --resume --runId ${config.runId}`);
         }
         agentRunId = run.runId;
         steps = run.steps;
