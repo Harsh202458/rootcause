@@ -3,6 +3,9 @@ import axios from 'axios';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Overload and network errors usually clear within minutes; waits grow to 60s each.
+const MAX_RETRIES = 15;
+
 export class GeminiProvider implements LLMProvider {
   name = 'gemini';
   model: string;
@@ -82,7 +85,7 @@ export class GeminiProvider implements LLMProvider {
     }] : undefined;
 
     let attempts = 0;
-    while (attempts <= 6) {
+    while (attempts <= MAX_RETRIES) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
         const payload: any = {
@@ -157,7 +160,7 @@ export class GeminiProvider implements LLMProvider {
         }
         // No response at all: a timeout or a dropped connection. Worth retrying.
         const networkFailure = !err.response;
-        if ((status === 429 || status === 503 || status === 500 || networkFailure) && attempts < 6) {
+        if ((status === 429 || status === 503 || status === 500 || networkFailure) && attempts < MAX_RETRIES) {
           attempts++;
           const hinted = /retry in ([\d.]+)s/i.exec(message);
           const waitTime = hinted ? Math.ceil(Number(hinted[1]) * 1000) + 1000 : Math.min(2 ** attempts * 2000, 60000);
